@@ -1,0 +1,16 @@
+# Mutable vendor installer; provenance and checksum are in KINETICA_ARTIFACTS.md.
+/kinetica
+/kinetica.upstream
+/patches/
+
+# Prevent accidental check-in of local runtime data if a developer overrides
+# the deployment's external persistence directory.
+/kinetica-persist/
+
+# Credentials and local configuration overrides.
+.env
+.env.*
+*.key
+*.pem
+*password*
+*secret*
