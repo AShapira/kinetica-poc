@@ -105,3 +105,16 @@ approved Sedona GIS benchmark. Times use Asia/Jerusalem unless stated otherwise.
   unchanged. The completed one-core run retained its independently executed
   oracle; an in-progress two-core attempt was interrupted before producing a
   manifest and was rerun after this change.
+
+## 2026-07-28 — Pin the Kinetica wheel's undeclared runtime dependency
+
+- **Phase:** Kinetica load
+- **Issue:** `gpudb==7.2.3.9` imports `typeguard.value` in its core module, but
+  declares `typeguard` only for its optional `dataframe` extra. A default install
+  therefore raises `ModuleNotFoundError` before authentication.
+- **Choice:** pin `typeguard==4.4.4` directly in both the project dependencies
+  and resolved lock file.
+- **Reason:** an ephemeral clean-image probe confirmed that version exports
+  `value` and allows the pinned `gpudb` module to import.
+- **Impact:** no database state changed during the failed load; the error
+  occurred before connection creation.

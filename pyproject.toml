@@ -11,6 +11,7 @@ dependencies = [
   "apache-sedona[db]==1.9.0",
   "geopandas==1.1.1",
   "gpudb==7.2.3.9",
+  "typeguard==4.4.4",
   "jsonschema==4.25.0",
   "jupyterlab==4.4.5",
   "jupytext==1.17.2",
