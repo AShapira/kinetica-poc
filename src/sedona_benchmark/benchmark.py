@@ -18,6 +18,7 @@ import matplotlib.pyplot as plt
 import pandas as pd
 import psutil
 import sedona.db
+from shapely import from_wkt
 
 from sedona_benchmark.config import BenchmarkConfig
 from sedona_benchmark.manifest import git_commit, write_json
@@ -731,54 +732,200 @@ def run_kinetica(config: BenchmarkConfig, tier: str, smoke: bool = False) -> Pat
     )
 
 
+def _publication_runs(config: BenchmarkConfig) -> list[dict[str, Any]]:
+    """Select one clean, complete five-repetition run per comparable case."""
+    expected_locations = int(config.values["locations"]["count"])
+    expected_repetitions = int(config.values["benchmark"]["repetitions"])
+    latest: dict[tuple[str, str, tuple[int, ...]], dict[str, Any]] = {}
+    for path in sorted((config.output_root / "runs").glob("*.json")):
+        value = json.loads(path.read_text(encoding="utf-8"))
+        affinity = tuple(value["environment"].get("cpu_affinity", []))
+        if (
+            value.get("location_count") != expected_locations
+            or value.get("repetitions") != expected_repetitions
+            or not value.get("correctness", {}).get("passed")
+            or value["environment"].get("git_dirty")
+        ):
+            continue
+        key = (value["engine"], value["road_tier"], affinity)
+        if key not in latest or value["created_at"] > latest[key]["created_at"]:
+            value["_manifest_path"] = str(path)
+            latest[key] = value
+    return sorted(
+        latest.values(),
+        key=lambda value: (
+            value["road_tier"],
+            value["engine"],
+            len(value["environment"].get("cpu_affinity", [])),
+        ),
+    )
+
+
+def _full_resource_run(
+    runs: list[dict[str, Any]], engine: str, tier: str
+) -> dict[str, Any] | None:
+    matches = [
+        run
+        for run in runs
+        if run["engine"] == engine
+        and run["road_tier"] == tier
+        and len(run["environment"].get("cpu_affinity", []))
+        == run["environment"].get("logical_cpus")
+    ]
+    return max(matches, key=lambda run: run["created_at"], default=None)
+
+
+def _projected_points(values) -> gpd.GeoSeries:
+    return gpd.GeoSeries(values, crs="EPSG:4326").to_crs("EPSG:2039")
+
+
 def _cross_engine_correctness(config: BenchmarkConfig) -> dict[str, Any]:
     tolerance = float(config.values["benchmark"]["correctness_tolerance_m"])
-    mismatches = 0
-    maximum = 0.0
-    checked = 0
+    expected = int(config.values["locations"]["count"])
+    runs = _publication_runs(config)
+    roads = gpd.read_parquet(
+        config.output_root / "canonical" / "israel_roads.parquet"
+    ).set_index("road_id").geometry
+    tiers: dict[str, Any] = {}
+    mismatch_samples: list[dict[str, Any]] = []
     for tier in config.values["roads"]["tiers"]:
-        run_values = []
-        for path in sorted((config.output_root / "runs").glob(f"*-{tier}.json")):
-            run_values.append(json.loads(path.read_text(encoding="utf-8")))
-        latest = {
-            engine: [run for run in run_values if run["engine"] == engine][-1]
-            for engine in ("sedonadb", "kinetica")
-            if any(run["engine"] == engine for run in run_values)
-        }
-        if set(latest) != {"sedonadb", "kinetica"}:
+        sedona_run = _full_resource_run(runs, "sedonadb", tier)
+        kinetica_run = _full_resource_run(runs, "kinetica", tier)
+        if sedona_run is None or kinetica_run is None:
+            tiers[tier] = {"passed": False, "reason": "missing full-resource run"}
             continue
-        left = pd.read_parquet(latest["sedonadb"]["result_path"])[
-            ["location_id", "distance_m"]
+        left = gpd.read_parquet(sedona_run["result_path"])[
+            ["location_id", "road_id", "nearest_point", "distance_m"]
         ]
-        right = pd.read_parquet(latest["kinetica"]["result_path"])[
-            ["location_id", "distance_m"]
+        right = pd.read_parquet(kinetica_run["result_path"])[
+            ["location_id", "road_id", "nearest_point_wkt", "distance_m"]
         ]
         joined = left.merge(right, on="location_id", suffixes=("_sedona", "_kinetica"))
-        delta = (joined.distance_m_sedona - joined.distance_m_kinetica).abs()
-        checked += len(joined)
-        mismatches += int((delta > tolerance).sum())
-        maximum = max(maximum, float(delta.max()))
+        distance_delta = (
+            joined.distance_m_sedona - joined.distance_m_kinetica
+        ).abs()
+        sedona_points = _projected_points(joined.nearest_point.to_list())
+        kinetica_points = _projected_points(
+            from_wkt(joined.nearest_point_wkt.to_numpy())
+        )
+        point_delta = sedona_points.distance(kinetica_points)
+        sedona_roads = _projected_points(
+            joined.road_id_sedona.map(roads).to_list()
+        )
+        kinetica_roads = _projected_points(
+            joined.road_id_kinetica.map(roads).to_list()
+        )
+        sedona_off_road = sedona_points.distance(sedona_roads)
+        kinetica_off_road = kinetica_points.distance(kinetica_roads)
+        road_id_differs = joined.road_id_sedona != joined.road_id_kinetica
+        unexplained_road_id = road_id_differs & (
+            (distance_delta > tolerance)
+            | (point_delta > tolerance)
+            | (sedona_off_road > tolerance)
+            | (kinetica_off_road > tolerance)
+        )
+        failed = (
+            (distance_delta > tolerance)
+            | (point_delta > tolerance)
+            | (sedona_off_road > tolerance)
+            | (kinetica_off_road > tolerance)
+            | unexplained_road_id
+        )
+        for index in joined.index[failed][:100]:
+            mismatch_samples.append(
+                {
+                    "tier": tier,
+                    "location_id": int(joined.at[index, "location_id"]),
+                    "sedona_road_id": joined.at[index, "road_id_sedona"],
+                    "kinetica_road_id": joined.at[index, "road_id_kinetica"],
+                    "distance_delta_m": float(distance_delta.at[index]),
+                    "nearest_point_delta_m": float(point_delta.at[index]),
+                    "sedona_point_off_road_m": float(sedona_off_road.at[index]),
+                    "kinetica_point_off_road_m": float(kinetica_off_road.at[index]),
+                }
+            )
+        oracle = sedona_run.get("exhaustive_oracle", {})
+        complete = (
+            len(left) == expected
+            and left.location_id.is_unique
+            and len(right) == expected
+            and right.location_id.is_unique
+            and len(joined) == expected
+        )
+        tiers[tier] = {
+            "passed": bool(complete and not failed.any() and oracle.get("passed")),
+            "checked_rows": len(joined),
+            "complete": complete,
+            "distance_mismatches": int((distance_delta > tolerance).sum()),
+            "maximum_distance_delta_m": float(distance_delta.max()),
+            "nearest_point_mismatches": int((point_delta > tolerance).sum()),
+            "maximum_nearest_point_delta_m": float(point_delta.max()),
+            "sedona_points_off_reported_road": int(
+                (sedona_off_road > tolerance).sum()
+            ),
+            "maximum_sedona_point_off_road_m": float(sedona_off_road.max()),
+            "kinetica_points_off_reported_road": int(
+                (kinetica_off_road > tolerance).sum()
+            ),
+            "maximum_kinetica_point_off_road_m": float(kinetica_off_road.max()),
+            "different_road_ids": int(road_id_differs.sum()),
+            "unexplained_different_road_ids": int(unexplained_road_id.sum()),
+            "sedona_exhaustive_oracle": oracle,
+            "sedona_run_id": sedona_run["run_id"],
+            "kinetica_run_id": kinetica_run["run_id"],
+        }
+    checked = sum(value.get("checked_rows", 0) for value in tiers.values())
+    passed = (
+        set(tiers) == set(config.values["roads"]["tiers"])
+        and checked == expected * len(config.values["roads"]["tiers"])
+        and all(value.get("passed") for value in tiers.values())
+    )
     return {
-        "passed": checked > 0 and mismatches == 0,
+        "passed": passed,
         "checked_rows": checked,
-        "mismatches": mismatches,
-        "maximum_distance_delta_m": maximum,
+        "expected_rows": expected * len(config.values["roads"]["tiers"]),
         "tolerance_m": tolerance,
+        "tiers": tiers,
+        "mismatch_samples": mismatch_samples,
+    }
+
+
+def _gpu_summary(value: dict[str, Any]) -> dict[str, float | None]:
+    directory = value["environment"].get("external_telemetry_dir")
+    if not directory:
+        return {
+            "gpu_utilization_peak_percent": None,
+            "gpu_utilization_mean_percent": None,
+            "gpu_memory_peak_mib": None,
+        }
+    path = Path(directory) / "nvidia-smi.csv"
+    if not path.exists():
+        return {
+            "gpu_utilization_peak_percent": None,
+            "gpu_utilization_mean_percent": None,
+            "gpu_memory_peak_mib": None,
+        }
+    telemetry = pd.read_csv(path)
+    telemetry.columns = telemetry.columns.str.strip()
+    utilization = telemetry["utilization.gpu [%]"].str.rstrip(" %").astype(float)
+    memory = telemetry["memory.used [MiB]"].str.rstrip(" MiB").astype(float)
+    return {
+        "gpu_utilization_peak_percent": float(utilization.max()),
+        "gpu_utilization_mean_percent": float(utilization.mean()),
+        "gpu_memory_peak_mib": float(memory.max()),
     }
 
 
 def compare_results(config: BenchmarkConfig) -> Path:
     runs = []
-    for path in sorted((config.output_root / "runs").glob("*.json")):
-        value = json.loads(path.read_text(encoding="utf-8"))
+    for value in _publication_runs(config):
         measured = [
             measurement["elapsed_seconds"]
             for measurement in value["measurements"]
             if measurement["kind"] == "measured"
         ]
-        if not measured:
-            continue
         median = statistics.median(measured)
+        telemetry = [measurement["telemetry"] for measurement in value["measurements"]]
         runs.append(
             {
                 "run_id": value["run_id"],
@@ -795,6 +942,21 @@ def compare_results(config: BenchmarkConfig) -> Path:
                 ),
                 "throughput_locations_s": value["location_count"] / median,
                 "correctness_passed": value["correctness"]["passed"],
+                "speedup": None,
+                "parallel_efficiency": None,
+                "client_peak_rss_bytes": max(
+                    item["maximum_rss_bytes"] for item in telemetry
+                ),
+                "client_peak_cpu_percent": max(
+                    item["maximum_process_cpu_percent"] for item in telemetry
+                ),
+                "git_commit": value["environment"]["git_commit"],
+                "image_digest": value["environment"]["image_digest"],
+                "candidate_radius_distribution": json.dumps(
+                    value.get("candidate_radius_distribution", {}),
+                    sort_keys=True,
+                ),
+                **_gpu_summary(value),
             }
         )
     if not runs:
@@ -802,6 +964,20 @@ def compare_results(config: BenchmarkConfig) -> Path:
     summary = pd.DataFrame(runs).sort_values(
         ["road_tier", "engine", "cpu_count"]
     )
+    scaling_mask = (summary.engine == "sedonadb") & (
+        summary.road_tier == config.values["roads"]["headline_tier"]
+    )
+    scaling = summary[scaling_mask]
+    one_cpu = scaling[scaling.cpu_count == 1]
+    if len(one_cpu) == 1:
+        baseline = float(one_cpu.iloc[0].median_seconds)
+        summary.loc[scaling_mask, "speedup"] = (
+            baseline / summary.loc[scaling_mask, "median_seconds"]
+        )
+        summary.loc[scaling_mask, "parallel_efficiency"] = (
+            summary.loc[scaling_mask, "speedup"]
+            / summary.loc[scaling_mask, "cpu_count"]
+        )
     evidence = Path(config.values["output"]["evidence_root"])
     evidence.mkdir(parents=True, exist_ok=True)
     out = evidence / "benchmark-summary.csv"
@@ -823,5 +999,24 @@ def compare_results(config: BenchmarkConfig) -> Path:
     figure.tight_layout()
     figure.savefig(plots / "sedonadb-scaling.svg")
     figure.savefig(plots / "sedonadb-scaling.png", dpi=160)
+    plt.close(figure)
+    full_resource = summary[
+        summary.cpu_count
+        == summary.groupby(["engine", "road_tier"]).cpu_count.transform("max")
+    ]
+    comparison = full_resource.pivot(
+        index="road_tier", columns="engine", values="median_seconds"
+    )
+    figure, axis = plt.subplots(figsize=(8, 5))
+    comparison.plot.bar(ax=axis)
+    axis.set(
+        xlabel="Road tier",
+        ylabel="Median warm latency (seconds)",
+        title="Nearest-road latency on the deployed SedonaDB and Kinetica systems",
+    )
+    axis.grid(True, axis="y", alpha=0.3)
+    figure.tight_layout()
+    figure.savefig(plots / "engine-comparison.svg")
+    figure.savefig(plots / "engine-comparison.png", dpi=160)
     plt.close(figure)
     return out
