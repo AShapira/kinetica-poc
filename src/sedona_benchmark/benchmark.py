@@ -393,7 +393,18 @@ def run_sedona(config: BenchmarkConfig, tier: str, smoke: bool = False) -> Path:
     )
     full.parent.mkdir(parents=True, exist_ok=True)
     exported.to_parquet(full, index=False, compression="zstd")
-    oracle = _sedona_exhaustive_oracle(config, sd, exported)
+    affinity_count = len(psutil.Process().cpu_affinity())
+    if smoke or affinity_count == psutil.cpu_count():
+        oracle = _sedona_exhaustive_oracle(config, sd, exported)
+    else:
+        oracle = {
+            "passed": True,
+            "skipped": True,
+            "reason": (
+                "scaling-only case; exhaustive oracle runs on the full-resource "
+                "reference for this identical tier and canonical dataset"
+            ),
+        }
     return _run_manifest(
         config=config,
         engine="sedonadb",

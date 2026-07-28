@@ -105,7 +105,9 @@ For each engine/tier/resource case:
 4. run one excluded warm-up;
 5. measure five warm executions;
 6. export one complete result for correctness;
-7. record environment, telemetry, checksum, and status.
+7. run the exhaustive oracle for the full-resource reference (scaling-only
+   cases record the reference instead of repeating it);
+8. record environment, telemetry, checksum, and status.
 
 The headline is median warm latency. Also report p95, min, max, median absolute
 deviation, throughput, speedup, and parallel efficiency. Five repetitions show
@@ -124,7 +126,9 @@ Performance is publishable only when:
 - the closest point lies on the reported road;
 - cross-engine distances and points agree within 1 metre;
 - different IDs are explained by tied or overlapping geometry; and
-- at least 100 deterministic locations pass exhaustive all-road ranking.
+- at least 100 deterministic locations per full-resource tier pass exhaustive
+  all-road ranking; CPU-affinity scaling cases reuse that semantic gate because
+  affinity does not alter the data or query.
 
 All mismatches are retained with both results, delta, source road IDs, and
 geometry. An unexplained mismatch blocks the final comparison.

@@ -91,3 +91,17 @@ approved Sedona GIS benchmark. Times use Asia/Jerusalem unless stated otherwise.
 - **Validation:** the 100-location smoke distribution was 44/22/12/17/5 across
   1/2/4/8/16 km, used under 0.6 GB RSS, created no retained spill, and matched
   the exhaustive oracle for all 100 points.
+
+## 2026-07-28 — Run the exhaustive oracle once per semantic workload
+
+- **Phase:** CPU scaling
+- **Issue:** the exhaustive 100-point/all-road oracle is deliberately
+  independent and takes much longer than the measured query at one core.
+  Repeating it at every affinity does not test a semantic change.
+- **Choice:** execute it for smoke and each full-resource tier. Scaling-only
+  manifests explicitly mark the oracle as skipped and reference the identical
+  full-resource semantic gate.
+- **Impact:** measured queries, checksums, output materialization, and timing are
+  unchanged. The completed one-core run retained its independently executed
+  oracle; an in-progress two-core attempt was interrupted before producing a
+  manifest and was rerun after this change.
