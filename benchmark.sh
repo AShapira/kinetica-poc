@@ -18,7 +18,8 @@ image="localhost/sedona-kinetica-benchmark:0.1.0"
 config="/workspace/config/benchmark.yaml"
 benchmark_git_commit="$(git rev-parse HEAD)"
 benchmark_git_dirty=false
-if [[ -n "$(git status --porcelain)" ]]; then
+# Curated evidence is produced by the run itself; it is not benchmark source.
+if [[ -n "$(git status --porcelain -- . ':(exclude)evidence/**')" ]]; then
   benchmark_git_dirty=true
 fi
 benchmark_image_id="$(podman image inspect --format '{{.Id}}' "${image}")"
