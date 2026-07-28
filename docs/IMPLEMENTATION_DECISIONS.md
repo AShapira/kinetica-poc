@@ -25,7 +25,7 @@ approved Sedona GIS benchmark. Times use Asia/Jerusalem unless stated otherwise.
 - **Choice:** build a non-root Python 3.12 SedonaDB image and use
   `docker.io/apache/sedona:1.9.0` unchanged for Spark.
 - **Reason:** the DB image can pin the complete benchmark environment while the
-  Spark image preserves Apache's documented Spark 3.5.5/Jupyter topology.
+  Spark image preserves Apache's packaged Spark 3.5.5/Jupyter environment.
 - **Impact:** SedonaDB is the measured engine; Spark remains an educational
   environment and is not presented as a third benchmark result.
 - **Validation:** image smoke queries and service health checks are acceptance
@@ -223,3 +223,32 @@ approved Sedona GIS benchmark. Times use Asia/Jerusalem unless stated otherwise.
   publication manifest now cryptographically joins canonical manifests,
   selected run manifests, configuration, summaries, and plots so a stale
   convenience index cannot silently redefine the workload.
+
+## 2026-07-28 — Give the rootless Spark image scoped writable state
+
+- **Phase:** SedonaSpark notebook acceptance
+- **Issue:** the official image works in `/opt/workspace` and starts Jupyter
+  with runtime state under `/opt/workspace/.local`. The first rootless launch
+  mounted notebooks under `/workspace` and left the actual runtime directory
+  image-owned, so Jupyter exited with `PermissionError`.
+- **Choice:** mount the repository's `notebooks/` at
+  `/opt/workspace/notebooks` and ignored `runtime/spark-home/` at
+  `/opt/workspace/.local`, both writable by the keep-id user.
+- **Impact:** notebook 05 can persist its executed output and Jupyter can keep
+  ephemeral state without widening permissions to the repository or Overture
+  source.
+
+## 2026-07-28 — Launch only rootless local Spark and Jupyter services
+
+- **Phase:** SedonaSpark deployment acceptance
+- **Issue:** after Jupyter was fixed, the image's default `/opt/start.sh` also
+  attempted root-owned Spark configuration, SSH, standalone master/worker, and
+  Zeppelin services. Jupyter remained healthy and notebook 05 passed with
+  `local[*]`, but the optional service failures made container status noisy.
+- **Choice:** override only the image command with loopback JupyterLab and let
+  each notebook create an explicit local Spark context. Drop all capabilities,
+  retain only ports 8890 (Jupyter) and 4040 (per-session Spark UI), and set
+  driver memory through `PYSPARK_SUBMIT_ARGS`.
+- **Reason:** local multithreaded Spark is the implemented single-host GIS
+  curriculum. Advertising a broken standalone cluster would be misleading and
+  adds no value to the measured SedonaDB/Kinetica comparison.

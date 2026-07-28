@@ -1,0 +1,346 @@
+{
+  "candidate_radius_distribution": {
+    "1000": 5141,
+    "16000": 639,
+    "2000": 1421,
+    "4000": 1489,
+    "8000": 1310
+  },
+  "correctness": {
+    "null_distances": 0,
+    "passed": true,
+    "unique_locations": true
+  },
+  "created_at": "2026-07-28T07:46:51.187999+00:00",
+  "engine": "kinetica",
+  "environment": {
+    "cpu_affinity": [
+      0,
+      1,
+      2,
+      3,
+      4,
+      5,
+      6,
+      7,
+      8,
+      9,
+      10,
+      11,
+      12,
+      13,
+      14,
+      15,
+      16,
+      17,
+      18,
+      19,
+      20,
+      21,
+      22,
+      23,
+      24,
+      25,
+      26,
+      27
+    ],
+    "external_telemetry_dir": "/home/alex/dev/data/sedona-benchmark/telemetry/kinetica-20260728T074642Z",
+    "git_commit": "66b0c750ae869cb7456ae8c627382206fbb060e3",
+    "git_dirty": false,
+    "image_digest": "d879ff024ef26e7309ff432f5570a5afbed5615e7455e2f330485b51ec4ae093",
+    "logical_cpus": 28,
+    "memory_bytes": 50510598144,
+    "physical_cpus": 14,
+    "platform": "Linux-6.18.33.1-microsoft-standard-WSL2-x86_64-with-glibc2.36",
+    "python": "3.12.11"
+  },
+  "location_count": 10000,
+  "measurements": [
+    {
+      "elapsed_seconds": 1.2581077080685645,
+      "kind": "cold",
+      "result_checksum": "181a35c9bd95fcf489f2dc5929a98733d2284a203cdf790816bea2b752885829",
+      "result_count": 10000,
+      "sequence": 0,
+      "telemetry": {
+        "maximum_process_cpu_percent": 3.9,
+        "maximum_rss_bytes": 247607296,
+        "read_bytes": 0,
+        "sample_count": 4,
+        "sample_interval_seconds": 0.5,
+        "samples": [
+          {
+            "elapsed_seconds": 0.0008901580004021525,
+            "process_cpu_percent": null,
+            "rss_bytes": 243748864,
+            "system_cpu_percent": null,
+            "vms_bytes": 2937040896
+          },
+          {
+            "elapsed_seconds": 0.5011946860468015,
+            "process_cpu_percent": 0.0,
+            "rss_bytes": 243748864,
+            "system_cpu_percent": 60.5,
+            "vms_bytes": 2937040896
+          },
+          {
+            "elapsed_seconds": 1.0016719449777156,
+            "process_cpu_percent": 0.0,
+            "rss_bytes": 245448704,
+            "system_cpu_percent": 53.7,
+            "vms_bytes": 2939138048
+          },
+          {
+            "elapsed_seconds": 1.2577988570556045,
+            "process_cpu_percent": 3.9,
+            "rss_bytes": 247607296,
+            "system_cpu_percent": 35.8,
+            "vms_bytes": 2941218816
+          }
+        ],
+        "scope": "benchmark_client_process",
+        "write_bytes": 0
+      }
+    },
+    {
+      "elapsed_seconds": 0.9548390420386568,
+      "kind": "warmup",
+      "result_checksum": "181a35c9bd95fcf489f2dc5929a98733d2284a203cdf790816bea2b752885829",
+      "result_count": 10000,
+      "sequence": 1,
+      "telemetry": {
+        "maximum_process_cpu_percent": 2.0,
+        "maximum_rss_bytes": 253460480,
+        "read_bytes": 0,
+        "sample_count": 3,
+        "sample_interval_seconds": 0.5,
+        "samples": [
+          {
+            "elapsed_seconds": 0.00102610990870744,
+            "process_cpu_percent": null,
+            "rss_bytes": 250277888,
+            "system_cpu_percent": null,
+            "vms_bytes": 2942500864
+          },
+          {
+            "elapsed_seconds": 0.5012026019394398,
+            "process_cpu_percent": 2.0,
+            "rss_bytes": 251441152,
+            "system_cpu_percent": 49.9,
+            "vms_bytes": 2944598016
+          },
+          {
+            "elapsed_seconds": 0.9545987809542567,
+            "process_cpu_percent": 0.0,
+            "rss_bytes": 253460480,
+            "system_cpu_percent": 52.1,
+            "vms_bytes": 2946678784
+          }
+        ],
+        "scope": "benchmark_client_process",
+        "write_bytes": 0
+      }
+    },
+    {
+      "elapsed_seconds": 0.958138350979425,
+      "kind": "measured",
+      "result_checksum": "181a35c9bd95fcf489f2dc5929a98733d2284a203cdf790816bea2b752885829",
+      "result_count": 10000,
+      "sequence": 2,
+      "telemetry": {
+        "maximum_process_cpu_percent": 2.0,
+        "maximum_rss_bytes": 255004672,
+        "read_bytes": 0,
+        "sample_count": 3,
+        "sample_interval_seconds": 0.5,
+        "samples": [
+          {
+            "elapsed_seconds": 0.0011240249732509255,
+            "process_cpu_percent": null,
+            "rss_bytes": 254050304,
+            "system_cpu_percent": null,
+            "vms_bytes": 2947256320
+          },
+          {
+            "elapsed_seconds": 0.5012995270080864,
+            "process_cpu_percent": 2.0,
+            "rss_bytes": 254091264,
+            "system_cpu_percent": 51.8,
+            "vms_bytes": 2947256320
+          },
+          {
+            "elapsed_seconds": 0.9578832399565727,
+            "process_cpu_percent": 0.0,
+            "rss_bytes": 255004672,
+            "system_cpu_percent": 52.6,
+            "vms_bytes": 2947239936
+          }
+        ],
+        "scope": "benchmark_client_process",
+        "write_bytes": 0
+      }
+    },
+    {
+      "elapsed_seconds": 0.9673338810680434,
+      "kind": "measured",
+      "result_checksum": "181a35c9bd95fcf489f2dc5929a98733d2284a203cdf790816bea2b752885829",
+      "result_count": 10000,
+      "sequence": 3,
+      "telemetry": {
+        "maximum_process_cpu_percent": 6.4,
+        "maximum_rss_bytes": 255016960,
+        "read_bytes": 0,
+        "sample_count": 3,
+        "sample_interval_seconds": 0.5,
+        "samples": [
+          {
+            "elapsed_seconds": 0.0010617499938234687,
+            "process_cpu_percent": null,
+            "rss_bytes": 255008768,
+            "system_cpu_percent": null,
+            "vms_bytes": 2947256320
+          },
+          {
+            "elapsed_seconds": 0.5012603169307113,
+            "process_cpu_percent": 4.0,
+            "rss_bytes": 255008768,
+            "system_cpu_percent": 49.9,
+            "vms_bytes": 2947256320
+          },
+          {
+            "elapsed_seconds": 0.9670801709871739,
+            "process_cpu_percent": 6.4,
+            "rss_bytes": 255016960,
+            "system_cpu_percent": 51.3,
+            "vms_bytes": 2947239936
+          }
+        ],
+        "scope": "benchmark_client_process",
+        "write_bytes": 0
+      }
+    },
+    {
+      "elapsed_seconds": 0.9355832829605788,
+      "kind": "measured",
+      "result_checksum": "181a35c9bd95fcf489f2dc5929a98733d2284a203cdf790816bea2b752885829",
+      "result_count": 10000,
+      "sequence": 4,
+      "telemetry": {
+        "maximum_process_cpu_percent": 0.0,
+        "maximum_rss_bytes": 255021056,
+        "read_bytes": 0,
+        "sample_count": 3,
+        "sample_interval_seconds": 0.5,
+        "samples": [
+          {
+            "elapsed_seconds": 0.0011352300643920898,
+            "process_cpu_percent": null,
+            "rss_bytes": 255021056,
+            "system_cpu_percent": null,
+            "vms_bytes": 2947256320
+          },
+          {
+            "elapsed_seconds": 0.5014571229694411,
+            "process_cpu_percent": 0.0,
+            "rss_bytes": 255021056,
+            "system_cpu_percent": 51.4,
+            "vms_bytes": 2947256320
+          },
+          {
+            "elapsed_seconds": 0.9353554709814489,
+            "process_cpu_percent": 0.0,
+            "rss_bytes": 255016960,
+            "system_cpu_percent": 53.2,
+            "vms_bytes": 2947239936
+          }
+        ],
+        "scope": "benchmark_client_process",
+        "write_bytes": 0
+      }
+    },
+    {
+      "elapsed_seconds": 0.9668742740759626,
+      "kind": "measured",
+      "result_checksum": "181a35c9bd95fcf489f2dc5929a98733d2284a203cdf790816bea2b752885829",
+      "result_count": 10000,
+      "sequence": 5,
+      "telemetry": {
+        "maximum_process_cpu_percent": 2.0,
+        "maximum_rss_bytes": 255021056,
+        "read_bytes": 0,
+        "sample_count": 3,
+        "sample_interval_seconds": 0.5,
+        "samples": [
+          {
+            "elapsed_seconds": 0.0010309349745512009,
+            "process_cpu_percent": null,
+            "rss_bytes": 255021056,
+            "system_cpu_percent": null,
+            "vms_bytes": 2947256320
+          },
+          {
+            "elapsed_seconds": 0.5012278069043532,
+            "process_cpu_percent": 2.0,
+            "rss_bytes": 255021056,
+            "system_cpu_percent": 50.9,
+            "vms_bytes": 2947256320
+          },
+          {
+            "elapsed_seconds": 0.9666119728935882,
+            "process_cpu_percent": 0.0,
+            "rss_bytes": 255016960,
+            "system_cpu_percent": 51.1,
+            "vms_bytes": 2947239936
+          }
+        ],
+        "scope": "benchmark_client_process",
+        "write_bytes": 0
+      }
+    },
+    {
+      "elapsed_seconds": 0.9377611209638417,
+      "kind": "measured",
+      "result_checksum": "181a35c9bd95fcf489f2dc5929a98733d2284a203cdf790816bea2b752885829",
+      "result_count": 10000,
+      "sequence": 6,
+      "telemetry": {
+        "maximum_process_cpu_percent": 2.3,
+        "maximum_rss_bytes": 256958464,
+        "read_bytes": 0,
+        "sample_count": 3,
+        "sample_interval_seconds": 0.5,
+        "samples": [
+          {
+            "elapsed_seconds": 0.0011612100061029196,
+            "process_cpu_percent": null,
+            "rss_bytes": 255021056,
+            "system_cpu_percent": null,
+            "vms_bytes": 2947256320
+          },
+          {
+            "elapsed_seconds": 0.5013585669221357,
+            "process_cpu_percent": 2.0,
+            "rss_bytes": 255021056,
+            "system_cpu_percent": 50.0,
+            "vms_bytes": 2947256320
+          },
+          {
+            "elapsed_seconds": 0.9375301100080833,
+            "process_cpu_percent": 2.3,
+            "rss_bytes": 256958464,
+            "system_cpu_percent": 52.4,
+            "vms_bytes": 2949337088
+          }
+        ],
+        "scope": "benchmark_client_process",
+        "write_bytes": 0
+      }
+    }
+  ],
+  "repetitions": 5,
+  "result_path": "/benchmark-data/results/kinetica-general_driving-20260728T074651Z.parquet",
+  "road_tier": "general_driving",
+  "run_id": "20260728T074651Z-kinetica-general_driving",
+  "schema_version": 1,
+  "warmups": 1
+}

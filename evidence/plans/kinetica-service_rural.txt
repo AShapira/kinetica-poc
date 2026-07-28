@@ -1,0 +1,84 @@
+EXPLAIN
+        SELECT location_id, road_id, road_class, nearest_point, distance_m
+        FROM (
+            SELECT location_id, road_id, road_class,
+                   ST_CLOSESTPOINT(
+                       road_geometry, location_geometry, 1
+                   ) AS nearest_point,
+                   ST_DISTANCE(
+                       road_geometry, location_geometry, 1
+                   ) AS distance_m,
+                   ROW_NUMBER() OVER (
+                       PARTITION BY location_id
+                       ORDER BY ST_DISTANCE(
+                           road_geometry, location_geometry, 1
+                       ), road_id
+                   ) AS nearest_rank
+            FROM (
+
+            SELECT /* KI_HINT_NO_QUERY_RESULT_CACHING */
+                   l.location_id, r.road_id, r.road_class,
+                   r.geometry AS road_geometry,
+                   l.geometry AS location_geometry
+            FROM sedona_benchmark_locations AS l
+            JOIN sedona_benchmark_location_radii_service_rural AS b
+              ON l.location_id = b.location_id
+             AND b.radius_m = 1000
+            JOIN sedona_benchmark_roads AS r
+              ON r.is_service_rural
+             AND ST_DWITHIN(
+                 l.geometry, r.geometry, 1000, 1
+             )
+
+UNION ALL
+
+            SELECT /* KI_HINT_NO_QUERY_RESULT_CACHING */
+                   l.location_id, r.road_id, r.road_class,
+                   r.geometry AS road_geometry,
+                   l.geometry AS location_geometry
+            FROM sedona_benchmark_locations AS l
+            JOIN sedona_benchmark_location_radii_service_rural AS b
+              ON l.location_id = b.location_id
+             AND b.radius_m = 2000
+            JOIN sedona_benchmark_roads AS r
+              ON r.is_service_rural
+             AND ST_DWITHIN(
+                 l.geometry, r.geometry, 2000, 1
+             )
+
+UNION ALL
+
+            SELECT /* KI_HINT_NO_QUERY_RESULT_CACHING */
+                   l.location_id, r.road_id, r.road_class,
+                   r.geometry AS road_geometry,
+                   l.geometry AS location_geometry
+            FROM sedona_benchmark_locations AS l
+            JOIN sedona_benchmark_location_radii_service_rural AS b
+              ON l.location_id = b.location_id
+             AND b.radius_m = 4000
+            JOIN sedona_benchmark_roads AS r
+              ON r.is_service_rural
+             AND ST_DWITHIN(
+                 l.geometry, r.geometry, 4000, 1
+             )
+
+UNION ALL
+
+            SELECT /* KI_HINT_NO_QUERY_RESULT_CACHING */
+                   l.location_id, r.road_id, r.road_class,
+                   r.geometry AS road_geometry,
+                   l.geometry AS location_geometry
+            FROM sedona_benchmark_locations AS l
+            JOIN sedona_benchmark_location_radii_service_rural AS b
+              ON l.location_id = b.location_id
+             AND b.radius_m = 8000
+            JOIN sedona_benchmark_roads AS r
+              ON r.is_service_rural
+             AND ST_DWITHIN(
+                 l.geometry, r.geometry, 8000, 1
+             )
+
+            ) AS candidates
+        ) AS ranked
+        WHERE nearest_rank = 1
+        ORDER BY location_id

@@ -1,0 +1,67 @@
+{
+  "bounds": [
+    34.2675866,
+    29.49468367845342,
+    35.68416114370202,
+    33.2903486
+  ],
+  "created_at": "2026-07-28T06:01:55.890781+00:00",
+  "crs": "EPSG:4326",
+  "dataset_id": "overture-2026-07-22.0-il-roads-v1",
+  "duration_seconds": 33.140106417937204,
+  "files": [
+    {
+      "bytes": 69377878,
+      "path": "canonical/israel_roads.parquet",
+      "sha256": "14bcd2b36513208c882bdcafb9777ac8774ae82762abdac42ceb34fd54621b84"
+    }
+  ],
+  "generator": {
+    "command": "benchmark.sh prepare roads",
+    "config_sha256": "3be45dc6dbc2e3f175b37c26495c0c491b59b8efff887dfe239545aaf2ecf44d",
+    "git_commit": "8ca2564218a8808ff1f63fbd4b9fdd6170af40eb",
+    "git_dirty": false,
+    "image_digest": "0e041d10a637c79b3198dc0713845c43f12fa48f7371dcb0d20c19de9a61ada0"
+  },
+  "geometry_type": "LineString",
+  "license": "Overture Maps data; see https://docs.overturemaps.org/attribution/",
+  "parents": [
+    "israel-boundary"
+  ],
+  "row_count": 383603,
+  "schema_version": 1,
+  "source_release": "2026-07-22.0",
+  "stage": "canonical",
+  "statistics": {
+    "bbox": [
+      34.2674994,
+      29.49459420836315,
+      35.684354,
+      33.2904182
+    ],
+    "bbox_predicate": "xmin<=IL.xmax AND xmax>=IL.xmin AND ymin<=IL.ymax AND ymax>=IL.ymin",
+    "class_counts": {
+      "living_street": 4909,
+      "motorway": 2155,
+      "primary": 8873,
+      "residential": 134212,
+      "secondary": 24620,
+      "service": 70327,
+      "tertiary": 65659,
+      "track": 49116,
+      "trunk": 9894,
+      "unclassified": 13838
+    },
+    "source_file_count": 128,
+    "tier_counts": {
+      "arterial": 45542,
+      "general_driving": 264160,
+      "service_rural": 383603
+    },
+    "total_length_m": 75588105.62419774
+  },
+  "validation": {
+    "all_classes_expected": true,
+    "passed": true
+  }
+}

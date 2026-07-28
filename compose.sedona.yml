@@ -9,7 +9,14 @@ services:
     image: localhost/sedona-kinetica-benchmark:0.1.0
     container_name: sedonadb-benchmark
     userns_mode: keep-id
-    cpuset: "${SEDONA_CPUSET:-0-27}"
+    command:
+      - taskset
+      - --cpu-list
+      - "${SEDONA_CPUSET:-0-27}"
+      - python
+      - -m
+      - sedona_benchmark
+      - serve
     ports:
       - "127.0.0.1:${SEDONADB_JUPYTER_PORT:-8889}:8888"
     environment:
@@ -36,13 +43,23 @@ services:
     ports:
       - "127.0.0.1:${SEDONASPARK_JUPYTER_PORT:-8890}:8888"
       - "127.0.0.1:4040:4040"
-      - "127.0.0.1:8081:8080"
-      - "127.0.0.1:8082:8081"
     environment:
-      DRIVER_MEM: "${SEDONASPARK_DRIVER_MEM:-6g}"
-      EXECUTOR_MEM: "${SEDONASPARK_EXECUTOR_MEM:-8g}"
+      HOME: /opt/workspace/.local
+      BENCHMARK_DATA_DIR: /benchmark-data
+      BENCHMARK_REPO_DIR: /opt/workspace
+      PYSPARK_SUBMIT_ARGS: "--driver-memory ${SEDONASPARK_DRIVER_MEM:-6g} pyspark-shell"
     volumes:
-      - ./notebooks:/workspace/notebooks:ro,Z
+      - ./notebooks:/opt/workspace/notebooks:Z
+      - ./runtime/spark-home:/opt/workspace/.local:Z
       - "${OVERTURE_RELEASE_DIR:?set OVERTURE_RELEASE_DIR}:/overture:ro,z"
       - "${BENCHMARK_DATA_DIR:?set BENCHMARK_DATA_DIR}:/benchmark-data:Z"
+    command:
+      - jupyter
+      - lab
+      - --ip=0.0.0.0
+      - --port=8888
+      - --no-browser
+      - --ServerApp.token=
+      - --ServerApp.password=
     security_opt: ["no-new-privileges"]
+    cap_drop: ["ALL"]

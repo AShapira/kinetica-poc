@@ -1,0 +1,575 @@
+{
+  "artifacts": [
+    {
+      "bytes": 5108,
+      "path": "benchmark-summary.csv",
+      "sha256": "16fd10291cf48ae0592a8b5b540b8d2cdafbe08bd216009c8859722a43421c42"
+    },
+    {
+      "bytes": 2991,
+      "path": "correctness-summary.json",
+      "sha256": "08a47a35504ea06b1dc97a0982330e43eda61fd4b61a4dc13427f73b014fbd53"
+    },
+    {
+      "bytes": 39412,
+      "path": "plots/sedonadb-scaling.svg",
+      "sha256": "d9656ed1452d376084d9a76bd7f0cc2fafa4a0bac8555e653aa0bd21543e7fe6"
+    },
+    {
+      "bytes": 62570,
+      "path": "plots/sedonadb-scaling.png",
+      "sha256": "db02e549c2c924e7afbea19284504b3f5d12d2deb0d06bf1cbc43d2a6adceb79"
+    },
+    {
+      "bytes": 38328,
+      "path": "plots/engine-comparison.svg",
+      "sha256": "d6e31c0d221cd7f233e95945f16c3ab1ebb58ac86ce4e3b9e66a7b0a30e5635f"
+    },
+    {
+      "bytes": 53302,
+      "path": "plots/engine-comparison.png",
+      "sha256": "66445838b5476c90b993d2a2e863ff145adb2c8a9487a13d05714ad91820ff69"
+    }
+  ],
+  "config_sha256": "0ede2a06c1db076a0ee9642899fc084c2742336e589a199b6d629745c618b7b0",
+  "correctness_passed": true,
+  "created_at": "2026-07-28T08:27:46.302474+00:00",
+  "dataset_manifests": {
+    "israel_boundary.json": {
+      "sha256": "531ec3fbf3bf38cc54f222c26b25b96dffe834dbcde400bd9c0d5f78efe71801",
+      "value": {
+        "bounds": [
+          34.2674994,
+          29.49459420836315,
+          35.684354,
+          33.2904182
+        ],
+        "created_at": "2026-07-28T06:01:21.327906+00:00",
+        "crs": "EPSG:4326",
+        "dataset_id": "overture-2026-07-22.0-il-boundary-v1",
+        "duration_seconds": 0.4048577609937638,
+        "files": [
+          {
+            "bytes": 138602,
+            "path": "canonical/israel_boundary.parquet",
+            "sha256": "69b8c6bcc6a38853cd82b4eb14af6c864a849ee1c34047414b5a033ab87a7460"
+          }
+        ],
+        "generator": {
+          "command": "benchmark.sh prepare boundary",
+          "config_sha256": "3be45dc6dbc2e3f175b37c26495c0c491b59b8efff887dfe239545aaf2ecf44d",
+          "git_commit": "8ca2564218a8808ff1f63fbd4b9fdd6170af40eb",
+          "git_dirty": false,
+          "image_digest": "0e041d10a637c79b3198dc0713845c43f12fa48f7371dcb0d20c19de9a61ada0"
+        },
+        "geometry_type": "MultiPolygon",
+        "license": "Overture Maps data; see https://docs.overturemaps.org/attribution/",
+        "parents": [],
+        "row_count": 1,
+        "schema_version": 1,
+        "source_release": "2026-07-22.0",
+        "stage": "canonical",
+        "statistics": {
+          "division_id": "bff6e958-3bfc-4f54-9223-19849cc08577",
+          "source_file_count": 8
+        },
+        "validation": {
+          "passed": true
+        }
+      }
+    },
+    "israel_locations_10000.json": {
+      "sha256": "95a279c7ee8a47a8255799d00273ec9725e2d61f094f5a32894f680d42129a7c",
+      "value": {
+        "bounds": [
+          34.27716336150499,
+          29.50031472608873,
+          35.66584773851334,
+          33.25969383470916
+        ],
+        "created_at": "2026-07-28T08:27:42.925429+00:00",
+        "crs": "EPSG:4326",
+        "dataset_id": "il-locations-n10000-seed20260727-v1",
+        "duration_seconds": 0.7624303019838408,
+        "files": [
+          {
+            "bytes": 736698,
+            "path": "canonical/israel_locations_10000.csv",
+            "sha256": "957fbe51c5c87d37f4013aae84c95253f119a22c80b47e37d5509ba26b43f7d5"
+          },
+          {
+            "bytes": 727624,
+            "path": "canonical/israel_locations_10000.parquet",
+            "sha256": "4bcaa285292d2b30485f5b8aab6b5e05d3b0da2af7bf293803159ae3cdb5f1ae"
+          }
+        ],
+        "generator": {
+          "command": "benchmark.sh prepare locations",
+          "config_sha256": "0ede2a06c1db076a0ee9642899fc084c2742336e589a199b6d629745c618b7b0",
+          "git_commit": "b452618a44647fe2d2b0f3bea3d17bf23bc187fd",
+          "git_dirty": false,
+          "image_digest": "afcd31998b74911cd54f21ebe98ec07df71ab9c24cdaebda366a180c4b292cf2"
+        },
+        "geometry_type": "Point",
+        "license": "Overture Maps data; see https://docs.overturemaps.org/attribution/",
+        "parents": [
+          "israel-boundary"
+        ],
+        "row_count": 10000,
+        "schema_version": 1,
+        "source_release": "2026-07-22.0",
+        "stage": "canonical",
+        "statistics": {
+          "generator": "numpy.PCG64",
+          "projected_crs": "EPSG:2039",
+          "seed": 20260727
+        },
+        "validation": {
+          "contained": true,
+          "passed": true,
+          "unique": true
+        }
+      }
+    },
+    "israel_roads.json": {
+      "sha256": "8da1aecb42732b90de8811d0d572ff53cfdf4883d675ad60fc112a6fbea7d7b6",
+      "value": {
+        "bounds": [
+          34.2675866,
+          29.49468367845342,
+          35.68416114370202,
+          33.2903486
+        ],
+        "created_at": "2026-07-28T06:01:55.890781+00:00",
+        "crs": "EPSG:4326",
+        "dataset_id": "overture-2026-07-22.0-il-roads-v1",
+        "duration_seconds": 33.140106417937204,
+        "files": [
+          {
+            "bytes": 69377878,
+            "path": "canonical/israel_roads.parquet",
+            "sha256": "14bcd2b36513208c882bdcafb9777ac8774ae82762abdac42ceb34fd54621b84"
+          }
+        ],
+        "generator": {
+          "command": "benchmark.sh prepare roads",
+          "config_sha256": "3be45dc6dbc2e3f175b37c26495c0c491b59b8efff887dfe239545aaf2ecf44d",
+          "git_commit": "8ca2564218a8808ff1f63fbd4b9fdd6170af40eb",
+          "git_dirty": false,
+          "image_digest": "0e041d10a637c79b3198dc0713845c43f12fa48f7371dcb0d20c19de9a61ada0"
+        },
+        "geometry_type": "LineString",
+        "license": "Overture Maps data; see https://docs.overturemaps.org/attribution/",
+        "parents": [
+          "israel-boundary"
+        ],
+        "row_count": 383603,
+        "schema_version": 1,
+        "source_release": "2026-07-22.0",
+        "stage": "canonical",
+        "statistics": {
+          "bbox": [
+            34.2674994,
+            29.49459420836315,
+            35.684354,
+            33.2904182
+          ],
+          "bbox_predicate": "xmin<=IL.xmax AND xmax>=IL.xmin AND ymin<=IL.ymax AND ymax>=IL.ymin",
+          "class_counts": {
+            "living_street": 4909,
+            "motorway": 2155,
+            "primary": 8873,
+            "residential": 134212,
+            "secondary": 24620,
+            "service": 70327,
+            "tertiary": 65659,
+            "track": 49116,
+            "trunk": 9894,
+            "unclassified": 13838
+          },
+          "source_file_count": 128,
+          "tier_counts": {
+            "arterial": 45542,
+            "general_driving": 264160,
+            "service_rural": 383603
+          },
+          "total_length_m": 75588105.62419774
+        },
+        "validation": {
+          "all_classes_expected": true,
+          "passed": true
+        }
+      }
+    }
+  },
+  "schema_version": 1,
+  "selected_runs": [
+    {
+      "cpu_affinity": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27
+      ],
+      "engine": "kinetica",
+      "git_commit": "66b0c750ae869cb7456ae8c627382206fbb060e3",
+      "image_digest": "d879ff024ef26e7309ff432f5570a5afbed5615e7455e2f330485b51ec4ae093",
+      "manifest_path": "/benchmark-data/runs/20260728T074642Z-kinetica-arterial.json",
+      "result_checksums": [
+        "b985c8c0210a48a2f2673018efed9ac79a4a872285f62ff6cfe0773e10202c3d"
+      ],
+      "road_tier": "arterial",
+      "run_id": "20260728T074642Z-kinetica-arterial"
+    },
+    {
+      "cpu_affinity": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27
+      ],
+      "engine": "sedonadb",
+      "git_commit": "6de80799b8070761f12ac0d92c8636ea313d0c2e",
+      "image_digest": "1811e88e9c81fa016ea99fad4c68c0536a4a2b1c129974664175cd4607e09a5d",
+      "manifest_path": "/benchmark-data/runs/20260728T081201Z-sedonadb-arterial.json",
+      "result_checksums": [
+        "86d57cdaf34e58d25122f477589d1315b690326bffe5949717412f018dbd297d"
+      ],
+      "road_tier": "arterial",
+      "run_id": "20260728T081201Z-sedonadb-arterial"
+    },
+    {
+      "cpu_affinity": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27
+      ],
+      "engine": "kinetica",
+      "git_commit": "66b0c750ae869cb7456ae8c627382206fbb060e3",
+      "image_digest": "d879ff024ef26e7309ff432f5570a5afbed5615e7455e2f330485b51ec4ae093",
+      "manifest_path": "/benchmark-data/runs/20260728T074651Z-kinetica-general_driving.json",
+      "result_checksums": [
+        "181a35c9bd95fcf489f2dc5929a98733d2284a203cdf790816bea2b752885829"
+      ],
+      "road_tier": "general_driving",
+      "run_id": "20260728T074651Z-kinetica-general_driving"
+    },
+    {
+      "cpu_affinity": [
+        0
+      ],
+      "engine": "sedonadb",
+      "git_commit": "6de80799b8070761f12ac0d92c8636ea313d0c2e",
+      "image_digest": "1811e88e9c81fa016ea99fad4c68c0536a4a2b1c129974664175cd4607e09a5d",
+      "manifest_path": "/benchmark-data/runs/20260728T080818Z-sedonadb-general_driving.json",
+      "result_checksums": [
+        "35c0a56dbecdcd0f43d003e6cbba7b8abcbee5e240d2b727e313857fb19ad677"
+      ],
+      "road_tier": "general_driving",
+      "run_id": "20260728T080818Z-sedonadb-general_driving"
+    },
+    {
+      "cpu_affinity": [
+        0,
+        2
+      ],
+      "engine": "sedonadb",
+      "git_commit": "6de80799b8070761f12ac0d92c8636ea313d0c2e",
+      "image_digest": "1811e88e9c81fa016ea99fad4c68c0536a4a2b1c129974664175cd4607e09a5d",
+      "manifest_path": "/benchmark-data/runs/20260728T080836Z-sedonadb-general_driving.json",
+      "result_checksums": [
+        "35c0a56dbecdcd0f43d003e6cbba7b8abcbee5e240d2b727e313857fb19ad677"
+      ],
+      "road_tier": "general_driving",
+      "run_id": "20260728T080836Z-sedonadb-general_driving"
+    },
+    {
+      "cpu_affinity": [
+        0,
+        2,
+        4,
+        6
+      ],
+      "engine": "sedonadb",
+      "git_commit": "6de80799b8070761f12ac0d92c8636ea313d0c2e",
+      "image_digest": "1811e88e9c81fa016ea99fad4c68c0536a4a2b1c129974664175cd4607e09a5d",
+      "manifest_path": "/benchmark-data/runs/20260728T080846Z-sedonadb-general_driving.json",
+      "result_checksums": [
+        "35c0a56dbecdcd0f43d003e6cbba7b8abcbee5e240d2b727e313857fb19ad677"
+      ],
+      "road_tier": "general_driving",
+      "run_id": "20260728T080846Z-sedonadb-general_driving"
+    },
+    {
+      "cpu_affinity": [
+        0,
+        2,
+        4,
+        6,
+        8,
+        10,
+        12,
+        14
+      ],
+      "engine": "sedonadb",
+      "git_commit": "6de80799b8070761f12ac0d92c8636ea313d0c2e",
+      "image_digest": "1811e88e9c81fa016ea99fad4c68c0536a4a2b1c129974664175cd4607e09a5d",
+      "manifest_path": "/benchmark-data/runs/20260728T080853Z-sedonadb-general_driving.json",
+      "result_checksums": [
+        "35c0a56dbecdcd0f43d003e6cbba7b8abcbee5e240d2b727e313857fb19ad677"
+      ],
+      "road_tier": "general_driving",
+      "run_id": "20260728T080853Z-sedonadb-general_driving"
+    },
+    {
+      "cpu_affinity": [
+        0,
+        2,
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        22
+      ],
+      "engine": "sedonadb",
+      "git_commit": "6de80799b8070761f12ac0d92c8636ea313d0c2e",
+      "image_digest": "1811e88e9c81fa016ea99fad4c68c0536a4a2b1c129974664175cd4607e09a5d",
+      "manifest_path": "/benchmark-data/runs/20260728T080859Z-sedonadb-general_driving.json",
+      "result_checksums": [
+        "35c0a56dbecdcd0f43d003e6cbba7b8abcbee5e240d2b727e313857fb19ad677"
+      ],
+      "road_tier": "general_driving",
+      "run_id": "20260728T080859Z-sedonadb-general_driving"
+    },
+    {
+      "cpu_affinity": [
+        0,
+        2,
+        4,
+        6,
+        8,
+        10,
+        12,
+        14,
+        16,
+        18,
+        20,
+        22,
+        24,
+        26
+      ],
+      "engine": "sedonadb",
+      "git_commit": "6de80799b8070761f12ac0d92c8636ea313d0c2e",
+      "image_digest": "1811e88e9c81fa016ea99fad4c68c0536a4a2b1c129974664175cd4607e09a5d",
+      "manifest_path": "/benchmark-data/runs/20260728T080907Z-sedonadb-general_driving.json",
+      "result_checksums": [
+        "35c0a56dbecdcd0f43d003e6cbba7b8abcbee5e240d2b727e313857fb19ad677"
+      ],
+      "road_tier": "general_driving",
+      "run_id": "20260728T080907Z-sedonadb-general_driving"
+    },
+    {
+      "cpu_affinity": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27
+      ],
+      "engine": "sedonadb",
+      "git_commit": "6de80799b8070761f12ac0d92c8636ea313d0c2e",
+      "image_digest": "1811e88e9c81fa016ea99fad4c68c0536a4a2b1c129974664175cd4607e09a5d",
+      "manifest_path": "/benchmark-data/runs/20260728T081144Z-sedonadb-general_driving.json",
+      "result_checksums": [
+        "35c0a56dbecdcd0f43d003e6cbba7b8abcbee5e240d2b727e313857fb19ad677"
+      ],
+      "road_tier": "general_driving",
+      "run_id": "20260728T081144Z-sedonadb-general_driving"
+    },
+    {
+      "cpu_affinity": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27
+      ],
+      "engine": "kinetica",
+      "git_commit": "66b0c750ae869cb7456ae8c627382206fbb060e3",
+      "image_digest": "d879ff024ef26e7309ff432f5570a5afbed5615e7455e2f330485b51ec4ae093",
+      "manifest_path": "/benchmark-data/runs/20260728T074702Z-kinetica-service_rural.json",
+      "result_checksums": [
+        "68c471afead8b67a9be707449b4ba95dc142cebecf59af104791d93a1681cc4f"
+      ],
+      "road_tier": "service_rural",
+      "run_id": "20260728T074702Z-kinetica-service_rural"
+    },
+    {
+      "cpu_affinity": [
+        0,
+        1,
+        2,
+        3,
+        4,
+        5,
+        6,
+        7,
+        8,
+        9,
+        10,
+        11,
+        12,
+        13,
+        14,
+        15,
+        16,
+        17,
+        18,
+        19,
+        20,
+        21,
+        22,
+        23,
+        24,
+        25,
+        26,
+        27
+      ],
+      "engine": "sedonadb",
+      "git_commit": "6de80799b8070761f12ac0d92c8636ea313d0c2e",
+      "image_digest": "1811e88e9c81fa016ea99fad4c68c0536a4a2b1c129974664175cd4607e09a5d",
+      "manifest_path": "/benchmark-data/runs/20260728T081656Z-sedonadb-service_rural.json",
+      "result_checksums": [
+        "e2e2b2f4e55224771135f46d7b9be4aba8eedcbdf528bf6351b504bd2d9bd887"
+      ],
+      "road_tier": "service_rural",
+      "run_id": "20260728T081656Z-sedonadb-service_rural"
+    }
+  ],
+  "selection_policy": "latest clean, correct, 10000-location, five-repetition run per engine, tier, and exact CPU affinity",
+  "source_release": "2026-07-22.0"
+}

@@ -6,9 +6,10 @@
 point generation, exact range-join execution, validation, notebooks, and
 reporting.
 
-**SedonaSpark** provides a one-master/one-worker learning cluster. Its notebook
-explains partitions, spatial SQL, GeoParquet, and why Spark's non-point KNN
-semantics are not used for the headline line-distance benchmark.
+**SedonaSpark** provides a rootless local-mode learning environment in the
+official image. Its notebook explains partitions, spatial SQL, GeoParquet, and
+why Spark's non-point KNN semantics are not used for the headline line-distance
+benchmark.
 
 **Kinetica** is the existing 7.2.3 GPU POC. Canonical rows are loaded through
 Kinetica's DB-API. Its equivalent workflow uses a proved candidate radius,

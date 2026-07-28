@@ -1,0 +1,84 @@
+{
+  "checked_rows": 30000,
+  "expected_rows": 30000,
+  "mismatch_samples": [],
+  "passed": true,
+  "tiers": {
+    "arterial": {
+      "checked_rows": 10000,
+      "complete": true,
+      "different_road_ids": 1,
+      "distance_mismatches": 0,
+      "kinetica_points_off_reported_road": 0,
+      "kinetica_run_id": "20260728T074642Z-kinetica-arterial",
+      "maximum_distance_delta_m": 0.006280189831159078,
+      "maximum_kinetica_point_off_road_m": 0.0013697822506074761,
+      "maximum_nearest_point_delta_m": 0.3400139748437893,
+      "maximum_sedona_point_off_road_m": 0.0011395283889332906,
+      "nearest_point_mismatches": 0,
+      "passed": true,
+      "sedona_exhaustive_oracle": {
+        "checked_locations": 100,
+        "distance_mismatches": 0,
+        "maximum_distance_delta_m": 0.0,
+        "passed": true,
+        "road_id_mismatches": 0,
+        "tolerance_m": 1.0
+      },
+      "sedona_points_off_reported_road": 0,
+      "sedona_run_id": "20260728T081201Z-sedonadb-arterial",
+      "unexplained_different_road_ids": 0
+    },
+    "general_driving": {
+      "checked_rows": 10000,
+      "complete": true,
+      "different_road_ids": 2,
+      "distance_mismatches": 0,
+      "kinetica_points_off_reported_road": 0,
+      "kinetica_run_id": "20260728T074651Z-kinetica-general_driving",
+      "maximum_distance_delta_m": 0.0030130070881568827,
+      "maximum_kinetica_point_off_road_m": 0.0008741089740191855,
+      "maximum_nearest_point_delta_m": 0.15660258400764626,
+      "maximum_sedona_point_off_road_m": 0.0008683711397105426,
+      "nearest_point_mismatches": 0,
+      "passed": true,
+      "sedona_exhaustive_oracle": {
+        "checked_locations": 100,
+        "distance_mismatches": 0,
+        "maximum_distance_delta_m": 0.0,
+        "passed": true,
+        "road_id_mismatches": 0,
+        "tolerance_m": 1.0
+      },
+      "sedona_points_off_reported_road": 0,
+      "sedona_run_id": "20260728T081144Z-sedonadb-general_driving",
+      "unexplained_different_road_ids": 0
+    },
+    "service_rural": {
+      "checked_rows": 10000,
+      "complete": true,
+      "different_road_ids": 1,
+      "distance_mismatches": 0,
+      "kinetica_points_off_reported_road": 0,
+      "kinetica_run_id": "20260728T074702Z-kinetica-service_rural",
+      "maximum_distance_delta_m": 0.001454403168281715,
+      "maximum_kinetica_point_off_road_m": 0.001729771871890746,
+      "maximum_nearest_point_delta_m": 0.27007700724229106,
+      "maximum_sedona_point_off_road_m": 0.001724797526808877,
+      "nearest_point_mismatches": 0,
+      "passed": true,
+      "sedona_exhaustive_oracle": {
+        "checked_locations": 100,
+        "distance_mismatches": 0,
+        "maximum_distance_delta_m": 0.0,
+        "passed": true,
+        "road_id_mismatches": 0,
+        "tolerance_m": 1.0
+      },
+      "sedona_points_off_reported_road": 0,
+      "sedona_run_id": "20260728T081656Z-sedonadb-service_rural",
+      "unexplained_different_road_ids": 0
+    }
+  },
+  "tolerance_m": 1.0
+}

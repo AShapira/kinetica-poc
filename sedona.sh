@@ -38,7 +38,6 @@ case "${1:-help}" in
     podman run --detach \
       --name "${db_container}" \
       --userns=keep-id \
-      --cpuset-cpus="${SEDONA_CPUSET:-0-27}" \
       --security-opt=no-new-privileges \
       --cap-drop=all \
       --publish "127.0.0.1:${SEDONADB_JUPYTER_PORT:-8889}:8888" \
@@ -48,24 +47,34 @@ case "${1:-help}" in
       --env BENCHMARK_CONFIG=/workspace/config/benchmark.yaml \
       --env OVERTURE_RELEASE_DIR=/overture \
       --env BENCHMARK_DATA_DIR=/benchmark-data \
-      "${image}"
+      "${image}" taskset --cpu-list "${SEDONA_CPUSET:-0-27}" \
+        python -m sedona_benchmark serve
     ;;
   start-spark)
     remove_container "${spark_container}"
+    install -d -m 700 "${project_dir}/runtime/spark-home"
     podman run --detach \
       --name "${spark_container}" \
       --userns=keep-id \
       --security-opt=no-new-privileges \
+      --cap-drop=all \
       --publish "127.0.0.1:${SEDONASPARK_JUPYTER_PORT:-8890}:8888" \
       --publish "127.0.0.1:4040:4040" \
-      --publish "127.0.0.1:8081:8080" \
-      --publish "127.0.0.1:8082:8081" \
-      --volume "${project_dir}/notebooks:/workspace/notebooks:ro,Z" \
+      --volume "${project_dir}/notebooks:/opt/workspace/notebooks:Z" \
+      --volume "${project_dir}/runtime/spark-home:/opt/workspace/.local:Z" \
       --volume "${OVERTURE_RELEASE_DIR}:/overture:ro,z" \
       --volume "${BENCHMARK_DATA_DIR}:/benchmark-data:Z" \
-      --env "DRIVER_MEM=${SEDONASPARK_DRIVER_MEM:-6g}" \
-      --env "EXECUTOR_MEM=${SEDONASPARK_EXECUTOR_MEM:-8g}" \
-      docker.io/apache/sedona:1.9.0
+      --env BENCHMARK_DATA_DIR=/benchmark-data \
+      --env BENCHMARK_REPO_DIR=/opt/workspace \
+      --env HOME=/opt/workspace/.local \
+      --env "PYSPARK_SUBMIT_ARGS=--driver-memory ${SEDONASPARK_DRIVER_MEM:-6g} pyspark-shell" \
+      docker.io/apache/sedona:1.9.0 \
+      jupyter lab \
+        --ip=0.0.0.0 \
+        --port=8888 \
+        --no-browser \
+        --ServerApp.token= \
+        --ServerApp.password=
     ;;
   stop)
     remove_container "${db_container}"

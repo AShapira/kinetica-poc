@@ -33,8 +33,9 @@ Overture 2026-07-22.0 (read only)
 
 The SedonaDB image uses Python 3.12. Direct dependencies are pinned in
 `pyproject.toml`; the resolved environment and image digest become run
-evidence. The official `apache/sedona:1.9.0` image supplies Spark 3.5.5 and its
-one-master/one-worker Jupyter environment.
+evidence. The official `apache/sedona:1.9.0` image supplies Spark 3.5.5 and a
+rootless Jupyter environment using `local[*]` execution. Distributed
+master/worker deployment is outside this single-host learning benchmark.
 
 ## Security boundary
 
@@ -81,7 +82,7 @@ visible in the run manifest.
 ```
 
 SedonaDB Jupyter defaults to port 8889. SedonaSpark Jupyter defaults to 8890;
-Spark master and worker interfaces are also loopback-only.
+the per-session Spark UI is loopback-only on port 4040.
 
 ## Phases and gates
 

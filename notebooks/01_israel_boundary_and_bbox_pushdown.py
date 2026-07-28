@@ -32,6 +32,12 @@ import geopandas as gpd
 import matplotlib.pyplot as plt
 
 data_root = Path(os.environ.get("BENCHMARK_DATA_DIR", "/benchmark-data"))
+repo_root = Path(
+    os.environ.get(
+        "BENCHMARK_REPO_DIR",
+        Path.cwd().parent if Path.cwd().name == "notebooks" else Path.cwd(),
+    )
+)
 boundary_path = data_root / "canonical" / "israel_boundary.parquet"
 if not boundary_path.exists():
     raise FileNotFoundError("Run ./benchmark.sh prepare boundary first")
@@ -65,7 +71,7 @@ plt.show()
 # membership.
 
 # %%
-plan = Path("evidence/plans/bbox-road-scan.txt")
+plan = repo_root / "evidence" / "plans" / "bbox-road-scan.txt"
 if plan.exists():
     print(plan.read_text()[:5000])
 else:

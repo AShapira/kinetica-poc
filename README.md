@@ -24,7 +24,7 @@ claim of equal hardware.
 
 - Overture release `2026-07-22.0`
 - SedonaDB 0.4.0 through `apache-sedona[db]==1.9.0`
-- SedonaSpark 1.9.0 with Spark 3.5.5
+- SedonaSpark 1.9.0 with Spark 3.5.5 in rootless local multithreaded mode
 - NumPy PCG64 seed `20260727`
 - `general_driving` headline road tier
 - one warm-up and five measured repetitions

@@ -1,0 +1,50 @@
+{
+  "bounds": [
+    34.27716336150499,
+    29.50031472608873,
+    35.66584773851334,
+    33.25969383470916
+  ],
+  "created_at": "2026-07-28T08:27:42.925429+00:00",
+  "crs": "EPSG:4326",
+  "dataset_id": "il-locations-n10000-seed20260727-v1",
+  "duration_seconds": 0.7624303019838408,
+  "files": [
+    {
+      "bytes": 736698,
+      "path": "canonical/israel_locations_10000.csv",
+      "sha256": "957fbe51c5c87d37f4013aae84c95253f119a22c80b47e37d5509ba26b43f7d5"
+    },
+    {
+      "bytes": 727624,
+      "path": "canonical/israel_locations_10000.parquet",
+      "sha256": "4bcaa285292d2b30485f5b8aab6b5e05d3b0da2af7bf293803159ae3cdb5f1ae"
+    }
+  ],
+  "generator": {
+    "command": "benchmark.sh prepare locations",
+    "config_sha256": "0ede2a06c1db076a0ee9642899fc084c2742336e589a199b6d629745c618b7b0",
+    "git_commit": "b452618a44647fe2d2b0f3bea3d17bf23bc187fd",
+    "git_dirty": false,
+    "image_digest": "afcd31998b74911cd54f21ebe98ec07df71ab9c24cdaebda366a180c4b292cf2"
+  },
+  "geometry_type": "Point",
+  "license": "Overture Maps data; see https://docs.overturemaps.org/attribution/",
+  "parents": [
+    "israel-boundary"
+  ],
+  "row_count": 10000,
+  "schema_version": 1,
+  "source_release": "2026-07-22.0",
+  "stage": "canonical",
+  "statistics": {
+    "generator": "numpy.PCG64",
+    "projected_crs": "EPSG:2039",
+    "seed": 20260727
+  },
+  "validation": {
+    "contained": true,
+    "passed": true,
+    "unique": true
+  }
+}

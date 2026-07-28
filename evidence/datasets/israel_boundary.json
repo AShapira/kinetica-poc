@@ -1,0 +1,40 @@
+{
+  "bounds": [
+    34.2674994,
+    29.49459420836315,
+    35.684354,
+    33.2904182
+  ],
+  "created_at": "2026-07-28T06:01:21.327906+00:00",
+  "crs": "EPSG:4326",
+  "dataset_id": "overture-2026-07-22.0-il-boundary-v1",
+  "duration_seconds": 0.4048577609937638,
+  "files": [
+    {
+      "bytes": 138602,
+      "path": "canonical/israel_boundary.parquet",
+      "sha256": "69b8c6bcc6a38853cd82b4eb14af6c864a849ee1c34047414b5a033ab87a7460"
+    }
+  ],
+  "generator": {
+    "command": "benchmark.sh prepare boundary",
+    "config_sha256": "3be45dc6dbc2e3f175b37c26495c0c491b59b8efff887dfe239545aaf2ecf44d",
+    "git_commit": "8ca2564218a8808ff1f63fbd4b9fdd6170af40eb",
+    "git_dirty": false,
+    "image_digest": "0e041d10a637c79b3198dc0713845c43f12fa48f7371dcb0d20c19de9a61ada0"
+  },
+  "geometry_type": "MultiPolygon",
+  "license": "Overture Maps data; see https://docs.overturemaps.org/attribution/",
+  "parents": [],
+  "row_count": 1,
+  "schema_version": 1,
+  "source_release": "2026-07-22.0",
+  "stage": "canonical",
+  "statistics": {
+    "division_id": "bff6e958-3bfc-4f54-9223-19849cc08577",
+    "source_file_count": 8
+  },
+  "validation": {
+    "passed": true
+  }
+}

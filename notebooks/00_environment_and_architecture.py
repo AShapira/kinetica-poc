@@ -31,20 +31,19 @@
 import json
 import os
 import platform
+from importlib.metadata import version
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
 import pyarrow
-import sedona
-import sedonadb
 import shapely
 
 versions = {
     "platform": platform.platform(),
     "python": platform.python_version(),
-    "apache_sedona": sedona.__version__,
-    "sedonadb": sedonadb.__version__,
+    "apache_sedona": version("apache-sedona"),
+    "sedonadb": version("sedonadb"),
     "numpy": np.__version__,
     "pandas": pd.__version__,
     "pyarrow": pyarrow.__version__,
@@ -63,7 +62,7 @@ pd.Series(versions, name="version").to_frame()
 paths = {
     "overture_configured": bool(os.environ.get("OVERTURE_RELEASE_DIR")),
     "benchmark_data_configured": bool(os.environ.get("BENCHMARK_DATA_DIR")),
-    "repository": str(Path.cwd()),
+    "repository": os.environ.get("BENCHMARK_REPO_DIR", str(Path.cwd())),
 }
 print(json.dumps(paths, indent=2))
 

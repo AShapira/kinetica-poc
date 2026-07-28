@@ -42,7 +42,9 @@ The password file must be mode `0600`. `.env` and the password are ignored.
 ```
 
 The DB smoke test runs a spatial SQL expression. For Spark, open the loopback
-Jupyter endpoint and execute notebook 05 after the canonical data exists.
+Jupyter endpoint and execute notebook 05 after the canonical data exists. The
+rootless service mounts only `notebooks/` and its ignored
+`runtime/spark-home/` as writable; source data remains on its separate mount.
 
 ## Fast validation
 

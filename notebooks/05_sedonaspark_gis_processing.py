@@ -80,7 +80,7 @@ spark.sql(
 # controlled SedonaDB CPU-affinity benchmark.
 #
 # Always stop the session before opening another kernel in the official
-# one-worker image.
+# rootless local-mode image.
 
 # %%
 spark.stop()

@@ -24,12 +24,19 @@
 # utilization.
 
 # %%
+import os
 from pathlib import Path
 
 import pandas as pd
 import yaml
 
-config = yaml.safe_load(Path("config/benchmark.yaml").read_text())
+repo_root = Path(
+    os.environ.get(
+        "BENCHMARK_REPO_DIR",
+        Path.cwd().parent if Path.cwd().name == "notebooks" else Path.cwd(),
+    )
+)
+config = yaml.safe_load((repo_root / "config" / "benchmark.yaml").read_text())
 pd.Series(
     {
         "initial_radius_m": config["benchmark"]["kinetica_initial_radius_m"],
@@ -79,13 +86,24 @@ print(kinetica_sql)
 runs = sorted(Path("/benchmark-data/runs").glob("*-kinetica-*.json"))
 if runs:
     import json
+    import statistics
 
     latest = json.loads(runs[-1].read_text())
+    measured = [
+        item["elapsed_seconds"]
+        for item in latest["measurements"]
+        if item["kind"] == "measured"
+    ]
     pd.Series(
         {
             "run_id": latest["run_id"],
             "tier": latest["road_tier"],
-            "candidate_radius_m": latest["candidate_radius_m"],
+            "locations": latest["location_count"],
+            "candidate_radius_distribution": latest[
+                "candidate_radius_distribution"
+            ],
+            "measured_repetitions": latest["repetitions"],
+            "median_warm_seconds": statistics.median(measured),
             "correctness": latest["correctness"]["passed"],
         }
     ).to_frame("value")

@@ -19,6 +19,15 @@ The DB image contains system `libproj` and `proj-data`. Use
 `sedona.db.configure_proj("system")` only if auto-detection fails, then record
 the PROJ library and database path.
 
+## SedonaSpark Jupyter exits or optional services fail
+
+Use `./sedona.sh start-spark`, which overrides the official image's
+multi-service root startup with rootless Jupyter and explicit Spark
+`local[*]`. Confirm `runtime/spark-home` is mode `0700` and writable by the
+current user. Do not re-enable the image's SSH, Zeppelin, or standalone
+master/worker startup and then describe their permission errors as a healthy
+learning deployment.
+
 ## Overture query returns no boundary
 
 Inspect the `division_area` schema and distinct `country`, `subtype`, and
@@ -60,6 +69,14 @@ Join by location ID and retain both road IDs, points, and distances. Inspect
 ties and overlapping centerlines first. Then run exhaustive distance ranking
 for the failing IDs. Do not adjust the tolerance above 1 metre to make the test
 pass.
+
+## Sedona becomes slower with more threads
+
+Check the recorded affinity against `lscpu`, verify Kinetica is stopped, and
+inspect per-repetition RSS, relative MAD, and retained spill. Do not delete slow
+late repetitions. The reference host showed a stable physical-core knee at
+8–12 cores and severe memory pressure at 28 SMT threads; another host may have
+a different knee.
 
 ## Notebook output is too large or machine-specific
 

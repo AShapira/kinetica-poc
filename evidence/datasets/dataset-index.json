@@ -1,0 +1,5 @@
+{
+  "boundary": "/benchmark-data/canonical/israel_boundary.parquet",
+  "locations": "/benchmark-data/canonical/israel_locations_10000.parquet",
+  "roads": "/benchmark-data/canonical/israel_roads.parquet"
+}
