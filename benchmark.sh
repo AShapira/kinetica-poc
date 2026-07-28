@@ -104,6 +104,32 @@ require_secret() {
   }
 }
 
+kinetica_is_running() {
+  [[ "$(podman inspect --format '{{.State.Running}}' kinetica 2>/dev/null || true)" == "true" ]]
+}
+
+require_kinetica_stopped() {
+  if kinetica_is_running; then
+    echo "Stop Kinetica before measuring Sedona: DOCKER_PROGRAM=podman ./kinetica stop" >&2
+    exit 1
+  fi
+}
+
+pause_kinetica() {
+  benchmark_restore_kinetica=false
+  if kinetica_is_running; then
+    DOCKER_PROGRAM=podman ./kinetica stop
+    benchmark_restore_kinetica=true
+  fi
+}
+
+restore_kinetica() {
+  if [[ "${benchmark_restore_kinetica:-false}" == "true" ]]; then
+    DOCKER_PROGRAM=podman ./kinetica start
+    benchmark_restore_kinetica=false
+  fi
+}
+
 run_scaling() {
   local tier="${1:-general_driving}"
   local labels=(physical_1 physical_2 physical_4 physical_8 physical_12 physical_14 logical_28)
@@ -121,9 +147,11 @@ case "${1:-help}" in
     run_container "0-27" prepare "${2:-all}" "${@:3}"
     ;;
   run-sedona)
+    require_kinetica_stopped
     run_container "${SEDONA_CPUSET:-0-27}" run-sedona "${@:2}"
     ;;
   run-scaling)
+    require_kinetica_stopped
     run_scaling "${2:-general_driving}"
     ;;
   load-kinetica)
@@ -143,9 +171,13 @@ case "${1:-help}" in
     ;;
   all|reproduce)
     run_container "0-27" prepare all
+    pause_kinetica
+    trap restore_kinetica EXIT
     run_scaling general_driving
     run_container "0-27" run-sedona --tier arterial
     run_container "0-27" run-sedona --tier service_rural
+    restore_kinetica
+    trap - EXIT
     require_secret
     run_container "0-27" load-kinetica
     for tier in arterial general_driving service_rural; do

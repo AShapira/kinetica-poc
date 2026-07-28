@@ -75,9 +75,11 @@ has `validation.passed=false`.
 Run phases individually for diagnosis:
 
 ```bash
+DOCKER_PROGRAM=podman ./kinetica stop
 ./benchmark.sh run-scaling general_driving
 SEDONA_CPUSET=0-27 ./benchmark.sh run-sedona --tier arterial
 SEDONA_CPUSET=0-27 ./benchmark.sh run-sedona --tier service_rural
+DOCKER_PROGRAM=podman ./kinetica start
 ./benchmark.sh load-kinetica
 ./benchmark.sh run-kinetica --tier arterial
 ./benchmark.sh run-kinetica --tier general_driving
@@ -87,7 +89,11 @@ SEDONA_CPUSET=0-27 ./benchmark.sh run-sedona --tier service_rural
 
 `./benchmark.sh reproduce` runs the sequence as one operation. The individual
 form is safer when diagnosing a first run because completed stages remain
-usable.
+usable. The single-command path records whether Kinetica was running, stops it
+for all Sedona measurements, and restores it before the Kinetica phase (also on
+an early exit). Individual Sedona commands fail fast if Kinetica is still
+running. A merely idle Kinetica container is not accepted as isolation because
+its background processes still consume host CPU and memory.
 
 ## Notebooks
 

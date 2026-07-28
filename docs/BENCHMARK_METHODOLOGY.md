@@ -122,9 +122,11 @@ The headline is median warm latency. Also report p95, min, max, median absolute
 deviation, throughput, speedup, and parallel efficiency. Five repetitions show
 run variability but do not justify claims of broad statistical significance.
 
-Competing benchmark engines do not run simultaneously. Kinetica remains
-unrestricted. SedonaDB uses six physical-core points and one 28-thread SMT
-endpoint.
+Competing benchmark engines do not run simultaneously. The Kinetica container
+is stopped during Sedona measurements and restored before its own phase;
+leaving it idle is insufficient because database background work still consumes
+CPU and memory. Kinetica remains unrestricted during its measurements.
+SedonaDB uses six physical-core points and one 28-thread SMT endpoint.
 
 ## Correctness
 

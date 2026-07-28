@@ -175,3 +175,20 @@ approved Sedona GIS benchmark. Times use Asia/Jerusalem unless stated otherwise.
 - **Impact:** the completed solution-2 manifests remain diagnostic runs and are
   excluded by revision selection. All three Kinetica publication tiers are
   regenerated after this committed change.
+
+## 2026-07-28 — Stop Kinetica during every Sedona measurement
+
+- **Phase:** variance investigation and engine isolation
+- **Issue:** the latest Sedona full-resource runs developed large warm-query
+  tails. Topology and spill checks were clean, but the nominally idle Kinetica
+  container still used roughly one-third of a CPU, 3.8 GB RAM, and 845
+  processes.
+- **Choice:** make a stopped Kinetica container an enforced Sedona precondition.
+  The one-command reproduction path stops and restores it with an exit trap;
+  individual commands fail with the exact lifecycle command to run.
+- **Reason:** “no simultaneous benchmark query” is weaker than resource
+  isolation on a single shared host. Background database work is an uncontrolled
+  competitor.
+- **Impact:** all Sedona scaling and full-resource tier cases are regenerated
+  once under the enforced policy. Older manifests remain external diagnostic
+  evidence; latest-case selection is deterministic and does not discard them.
