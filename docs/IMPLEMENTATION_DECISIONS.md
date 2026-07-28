@@ -209,3 +209,17 @@ approved Sedona GIS benchmark. Times use Asia/Jerusalem unless stated otherwise.
   physical-core optimum creates memory/execution pressure and is not a valid
   “more CPUs must be faster” assumption. This is an observed configuration
   result, not a universal Sedona conclusion.
+
+## 2026-07-28 — Separate smoke and full dataset indexes
+
+- **Phase:** evidence curation
+- **Issue:** smoke preparation correctly created a 100-point canonical sample
+  but reused `dataset-index.json`, making that catalog point at the sample even
+  though the complete 10,000-point dataset remained intact.
+- **Choice:** reserve `dataset-index.json` for the configured full dataset,
+  refresh it only when all full canonical files exist, and write
+  `smoke-dataset-index.json` for smoke preparation.
+- **Impact:** no dataset bytes or benchmark results changed. The curated
+  publication manifest now cryptographically joins canonical manifests,
+  selected run manifests, configuration, summaries, and plots so a stale
+  convenience index cannot silently redefine the workload.

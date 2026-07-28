@@ -21,7 +21,7 @@ import sedona.db
 from shapely import from_wkt
 
 from sedona_benchmark.config import BenchmarkConfig
-from sedona_benchmark.manifest import git_commit, write_json
+from sedona_benchmark.manifest import git_commit, sha256_file, write_json
 
 
 class _ProcessTelemetry:
@@ -1036,4 +1036,66 @@ def compare_results(config: BenchmarkConfig) -> Path:
     figure.savefig(plots / "engine-comparison.svg")
     figure.savefig(plots / "engine-comparison.png", dpi=160)
     plt.close(figure)
+    dataset_manifests = {}
+    for name in ("israel_boundary.json", "israel_roads.json"):
+        path = config.output_root / "manifests" / name
+        dataset_manifests[name] = {
+            "sha256": sha256_file(path),
+            "value": json.loads(path.read_text(encoding="utf-8")),
+        }
+    location_name = f"israel_locations_{config.values['locations']['count']}.json"
+    location_path = config.output_root / "manifests" / location_name
+    dataset_manifests[location_name] = {
+        "sha256": sha256_file(location_path),
+        "value": json.loads(location_path.read_text(encoding="utf-8")),
+    }
+    artifact_paths = [
+        out,
+        evidence / "correctness-summary.json",
+        plots / "sedonadb-scaling.svg",
+        plots / "sedonadb-scaling.png",
+        plots / "engine-comparison.svg",
+        plots / "engine-comparison.png",
+    ]
+    write_json(
+        evidence / "publication-manifest.json",
+        {
+            "schema_version": 1,
+            "created_at": datetime.now(UTC).isoformat(),
+            "source_release": config.values["source"]["overture_release"],
+            "config_sha256": config.sha256,
+            "selection_policy": (
+                "latest clean, correct, 10000-location, five-repetition run "
+                "per engine, tier, and exact CPU affinity"
+            ),
+            "dataset_manifests": dataset_manifests,
+            "selected_runs": [
+                {
+                    "run_id": value["run_id"],
+                    "manifest_path": value["_manifest_path"],
+                    "engine": value["engine"],
+                    "road_tier": value["road_tier"],
+                    "cpu_affinity": value["environment"].get("cpu_affinity", []),
+                    "git_commit": value["environment"]["git_commit"],
+                    "image_digest": value["environment"]["image_digest"],
+                    "result_checksums": sorted(
+                        {
+                            measurement["result_checksum"]
+                            for measurement in value["measurements"]
+                        }
+                    ),
+                }
+                for value in _publication_runs(config)
+            ],
+            "artifacts": [
+                {
+                    "path": str(path.relative_to(evidence)),
+                    "bytes": path.stat().st_size,
+                    "sha256": sha256_file(path),
+                }
+                for path in artifact_paths
+            ],
+            "correctness_passed": correctness["passed"],
+        },
+    )
     return out

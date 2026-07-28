@@ -15,6 +15,21 @@ from sedona_benchmark.config import BenchmarkConfig
 from sedona_benchmark.manifest import dataset_manifest, write_json
 
 
+def _refresh_full_dataset_index(config: BenchmarkConfig) -> dict[str, str] | None:
+    canonical = config.output_root / "canonical"
+    paths = {
+        "boundary": canonical / "israel_boundary.parquet",
+        "roads": canonical / "israel_roads.parquet",
+        "locations": canonical
+        / f"israel_locations_{int(config.values['locations']['count'])}.parquet",
+    }
+    if not all(path.exists() for path in paths.values()):
+        return None
+    index = {name: str(path) for name, path in paths.items()}
+    write_json(config.output_root / "manifests" / "dataset-index.json", index)
+    return index
+
+
 def _connect(config: BenchmarkConfig):
     sd = sedona.db.connect()
     sd.options.memory_limit = "12gb"
@@ -73,6 +88,7 @@ def prepare_boundary(config: BenchmarkConfig) -> Path:
         },
     )
     write_json(config.output_root / "manifests" / "israel_boundary.json", manifest)
+    _refresh_full_dataset_index(config)
     return out
 
 
@@ -194,6 +210,7 @@ def prepare_roads(config: BenchmarkConfig, boundary_path: Path | None = None) ->
         / "samples"
         / "israel_roads_100.parquet",
     )
+    _refresh_full_dataset_index(config)
     return out
 
 
@@ -261,6 +278,8 @@ def prepare_locations(
         / "samples"
         / "israel_locations_100.parquet",
     )
+    if target == int(config.values["locations"]["count"]):
+        _refresh_full_dataset_index(config)
     return out
 
 
@@ -274,5 +293,11 @@ def prepare_all(config: BenchmarkConfig, smoke: bool = False) -> dict[str, str]:
         "roads": str(roads),
         "locations": str(locations),
     }
-    write_json(config.output_root / "manifests" / "dataset-index.json", index)
+    if smoke:
+        write_json(
+            config.output_root / "manifests" / "smoke-dataset-index.json", index
+        )
+        _refresh_full_dataset_index(config)
+    else:
+        write_json(config.output_root / "manifests" / "dataset-index.json", index)
     return index

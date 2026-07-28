@@ -77,4 +77,11 @@ statistics, mismatches, and diagnostics remain in curated evidence.
 Each manifest records lineage, source release, generation command,
 configuration hash, Git commit, files, sizes, SHA-256, bounds, CRS, row count,
 geometry type, duration, statistics, and validation. A failed validation
-prohibits downstream benchmarking.
+prohibits downstream benchmarking. `dataset-index.json` always names the full
+10,000-location canonical set; smoke preparation writes
+`smoke-dataset-index.json` and cannot replace the full index.
+
+`evidence/publication-manifest.json` is the final lineage join. It embeds the
+three canonical dataset manifests and their hashes, lists the deterministic run
+selection policy and every selected run revision/result checksum, and hashes
+the summary, correctness report, and plots.
