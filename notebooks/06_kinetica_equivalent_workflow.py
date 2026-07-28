@@ -1,0 +1,93 @@
+# ---
+# kernelspec:
+#   display_name: Python 3
+#   language: python
+#   name: python3
+# jupyter:
+#   jupytext:
+#     formats: ipynb,py:percent
+#     text_representation:
+#       extension: .py
+#       format_name: percent
+#       format_version: '1.3'
+#       jupytext_version: 1.17.2
+# ---
+
+# %% [markdown]
+# # 06 — Kinetica equivalent workflow
+#
+# Kinetica does not expose SedonaDB's exact KNN join interface. Equivalence is
+# achieved with a candidate radius followed by exact distance ranking.
+#
+# **Learning objectives:** prove the radius is sufficient, understand why
+# radius discovery is preparation, and separate GPU visibility from GPU query
+# utilization.
+
+# %%
+from pathlib import Path
+
+import pandas as pd
+import yaml
+
+config = yaml.safe_load(Path("config/benchmark.yaml").read_text())
+pd.Series(
+    {
+        "initial_radius_m": config["benchmark"]["kinetica_initial_radius_m"],
+        "distance_solution": "2 — Vincenty/spheroid",
+        "result_cache": "disabled",
+        "tie_breaker": "road_id",
+    }
+).to_frame("setting")
+
+# %% [markdown]
+# The preparation loop doubles the radius until every location has at least one
+# candidate. Once a location has a road at distance `d <= radius`, every road
+# outside the radius is farther than that candidate. Ranking inside the radius
+# is therefore globally exact.
+
+# %%
+kinetica_sql = """
+SELECT location_id, road_id, road_class, nearest_point, distance_m
+FROM (
+  SELECT /* KI_HINT_NO_QUERY_RESULT_CACHING */
+         l.location_id, r.road_id, r.road_class,
+         ST_CLOSESTPOINT(r.geometry, l.geometry, 2) AS nearest_point,
+         ST_DISTANCE(r.geometry, l.geometry, 2) AS distance_m,
+         ROW_NUMBER() OVER (
+           PARTITION BY l.location_id
+           ORDER BY ST_DISTANCE(r.geometry, l.geometry, 2), r.road_id
+         ) AS nearest_rank
+  FROM sedona_benchmark_locations l
+  JOIN sedona_benchmark_roads r
+    ON r.is_general_driving
+   AND ST_DWITHIN(l.geometry, r.geometry, :radius_m, 2)
+) ranked
+WHERE nearest_rank = 1
+"""
+print(kinetica_sql)
+
+# %% [markdown]
+# The three solution arguments use Kinetica's spheroidal mode. Replacing one
+# with planar degrees would make the query faster-looking but semantically
+# invalid.
+#
+# GPU telemetry must overlap the SQL interval. `nvidia-smi` visibility, a
+# running container, or GPU memory allocated at startup does not prove this
+# query used the GPU.
+
+# %%
+runs = sorted(Path("/benchmark-data/runs").glob("*-kinetica-*.json"))
+if runs:
+    import json
+
+    latest = json.loads(runs[-1].read_text())
+    pd.Series(
+        {
+            "run_id": latest["run_id"],
+            "tier": latest["road_tier"],
+            "candidate_radius_m": latest["candidate_radius_m"],
+            "correctness": latest["correctness"]["passed"],
+        }
+    ).to_frame("value")
+else:
+    print("No Kinetica reference run is present yet; run load-kinetica and run-kinetica.")
