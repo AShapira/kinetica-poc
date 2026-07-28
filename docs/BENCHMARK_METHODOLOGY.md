@@ -24,7 +24,7 @@ Expected observations:
 - Overture-defined IL country land geometry
 - 10,000 unique PCG64 points, seed `20260727`
 - canonical clipped road fragments
-- exact spheroidal distance in metres
+- exact spherical distance in metres
 - deterministic road-ID tie breaker
 
 The headline `general_driving` tier includes motorway, trunk, primary,
@@ -83,9 +83,18 @@ Kinetica uses the equivalent proved-radius algorithm:
 
 1. start at 1 km and assign covered locations to that radius;
 2. double only for still-uncovered locations;
-3. union literal-radius joins with spheroidal `ST_DWITHIN`;
-4. rank candidates by spheroidal `ST_DISTANCE`, then road ID;
+3. union literal-radius joins with spherical `ST_DWITHIN`;
+4. rank candidates by spherical `ST_DISTANCE`, then road ID;
 5. calculate `ST_CLOSESTPOINT` for rank one.
+
+SedonaDB geography distance is a spherical approximation. Kinetica therefore
+uses solution `1` (Haversine/sphere) for all three spatial functions; solution
+`2` is Vincenty/spheroid and is intentionally not mixed into this equivalence
+test. See the official [SedonaDB `ST_Distance` reference][sedona-distance] and
+[Kinetica spatial expression reference][kinetica-expressions].
+
+[sedona-distance]: https://sedona.apache.org/sedonadb/latest/reference/sql/st_distance/
+[kinetica-expressions]: https://docs.kinetica.com/7.2/concepts/expressions/
 
 Radius discovery is preparation. Once each location has an in-radius
 candidate, no feature outside its assigned radius can be closer than the

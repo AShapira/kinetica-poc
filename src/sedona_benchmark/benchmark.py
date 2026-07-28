@@ -542,6 +542,7 @@ def _kinetica_radius_buckets(
     config: BenchmarkConfig, tier: str
 ) -> tuple[dict[int, int], str]:
     connection = _kinetica_connection(config)
+    solution = int(config.values["benchmark"]["kinetica_solution"])
     flag = {
         "arterial": "is_arterial",
         "general_driving": "is_general_driving",
@@ -574,7 +575,9 @@ def _kinetica_radius_buckets(
                     FROM sedona_benchmark_locations AS l
                     JOIN sedona_benchmark_roads AS r
                       ON r.{flag}
-                     AND ST_DWITHIN(l.geometry, r.geometry, {radius}, 2)
+                     AND ST_DWITHIN(
+                         l.geometry, r.geometry, {radius}, {solution}
+                     )
                     WHERE l.location_id IN ({unresolved_sql})
                     ORDER BY l.location_id
                     """
@@ -610,6 +613,7 @@ def run_kinetica(config: BenchmarkConfig, tier: str, smoke: bool = False) -> Pat
     repetitions = 2 if smoke else int(config.values["benchmark"]["repetitions"])
     warmups = int(config.values["benchmark"]["warmups"])
     radius_distribution, radius_table = _kinetica_radius_buckets(config, tier)
+    solution = int(config.values["benchmark"]["kinetica_solution"])
     flag = {
         "arterial": "is_arterial",
         "general_driving": "is_general_driving",
@@ -629,7 +633,9 @@ def run_kinetica(config: BenchmarkConfig, tier: str, smoke: bool = False) -> Pat
              AND b.radius_m = {radius}
             JOIN sedona_benchmark_roads AS r
               ON r.{flag}
-             AND ST_DWITHIN(l.geometry, r.geometry, {radius}, 2)
+             AND ST_DWITHIN(
+                 l.geometry, r.geometry, {radius}, {solution}
+             )
             """
         )
     candidates = "\nUNION ALL\n".join(candidate_branches)
@@ -638,15 +644,15 @@ def run_kinetica(config: BenchmarkConfig, tier: str, smoke: bool = False) -> Pat
         FROM (
             SELECT location_id, road_id, road_class,
                    ST_CLOSESTPOINT(
-                       road_geometry, location_geometry, 2
+                       road_geometry, location_geometry, {solution}
                    ) AS nearest_point,
                    ST_DISTANCE(
-                       road_geometry, location_geometry, 2
+                       road_geometry, location_geometry, {solution}
                    ) AS distance_m,
                    ROW_NUMBER() OVER (
                        PARTITION BY location_id
                        ORDER BY ST_DISTANCE(
-                           road_geometry, location_geometry, 2
+                           road_geometry, location_geometry, {solution}
                        ), road_id
                    ) AS nearest_rank
             FROM (

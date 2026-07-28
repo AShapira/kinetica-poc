@@ -34,7 +34,7 @@ geometry operations decide inclusion and nearest distance.
 
 Canonical geometry uses EPSG:4326. Sampling and quality lengths use EPSG:2039
 so planar area and length have local metric meaning. Measured nearest distances
-use spheroidal functions and metres.
+use spherical functions and metres.
 
 ## Reproducibility boundary
 

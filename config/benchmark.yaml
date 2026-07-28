@@ -31,6 +31,7 @@ benchmark:
   correctness_tolerance_m: 1.0
   exhaustive_oracle_locations: 100
   kinetica_initial_radius_m: 1000
+  kinetica_solution: 1
   telemetry_interval_seconds: 0.5
   cpu_sets:
     physical_1: "0"

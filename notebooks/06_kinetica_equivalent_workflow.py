@@ -33,7 +33,7 @@ config = yaml.safe_load(Path("config/benchmark.yaml").read_text())
 pd.Series(
     {
         "initial_radius_m": config["benchmark"]["kinetica_initial_radius_m"],
-        "distance_solution": "2 — Vincenty/spheroid",
+        "distance_solution": "1 — Haversine/sphere",
         "result_cache": "disabled",
         "tie_breaker": "road_id",
     }
@@ -51,25 +51,25 @@ SELECT location_id, road_id, road_class, nearest_point, distance_m
 FROM (
   SELECT /* KI_HINT_NO_QUERY_RESULT_CACHING */
          l.location_id, r.road_id, r.road_class,
-         ST_CLOSESTPOINT(r.geometry, l.geometry, 2) AS nearest_point,
-         ST_DISTANCE(r.geometry, l.geometry, 2) AS distance_m,
+         ST_CLOSESTPOINT(r.geometry, l.geometry, 1) AS nearest_point,
+         ST_DISTANCE(r.geometry, l.geometry, 1) AS distance_m,
          ROW_NUMBER() OVER (
            PARTITION BY l.location_id
-           ORDER BY ST_DISTANCE(r.geometry, l.geometry, 2), r.road_id
+           ORDER BY ST_DISTANCE(r.geometry, l.geometry, 1), r.road_id
          ) AS nearest_rank
   FROM sedona_benchmark_locations l
   JOIN sedona_benchmark_roads r
     ON r.is_general_driving
-   AND ST_DWITHIN(l.geometry, r.geometry, :radius_m, 2)
+   AND ST_DWITHIN(l.geometry, r.geometry, :radius_m, 1)
 ) ranked
 WHERE nearest_rank = 1
 """
 print(kinetica_sql)
 
 # %% [markdown]
-# The three solution arguments use Kinetica's spheroidal mode. Replacing one
-# with planar degrees would make the query faster-looking but semantically
-# invalid.
+# The three solution arguments use Kinetica's spherical mode, matching
+# SedonaDB geography distance. Replacing one with planar degrees or Vincenty
+# spheroid distance would change candidate coverage and ranking.
 #
 # GPU telemetry must overlap the SQL interval. `nvidia-smi` visibility, a
 # running container, or GPU memory allocated at startup does not prove this

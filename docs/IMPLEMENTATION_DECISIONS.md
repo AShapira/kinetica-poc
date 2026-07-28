@@ -159,3 +159,19 @@ approved Sedona GIS benchmark. Times use Asia/Jerusalem unless stated otherwise.
 - **Choice:** record `.MemUsage` and `.MemPerc` alongside CPU, I/O, and PID
   fields. A direct no-stream probe against the running Kinetica container
   validated the corrected template before publication runs.
+
+## 2026-07-28 — Match SedonaDB's spherical geography model in Kinetica
+
+- **Phase:** cross-engine correctness
+- **Issue:** the first complete comparison found thousands of distance deltas
+  over one metre and a small number of different nearest roads. The query used
+  Kinetica solution `2` (Vincenty/spheroid), while SedonaDB documents geography
+  `ST_Distance` as a spherical approximation.
+- **Choice:** use Kinetica solution `1` (Haversine/sphere) consistently in
+  `ST_DWITHIN`, `ST_DISTANCE`, and `ST_CLOSESTPOINT`.
+- **Reason:** a benchmark may compare implementations only after aligning the
+  distance model. Mixing sphere and spheroid measures mathematical model
+  choice, not engine correctness or performance.
+- **Impact:** the completed solution-2 manifests remain diagnostic runs and are
+  excluded by revision selection. All three Kinetica publication tiers are
+  regenerated after this committed change.

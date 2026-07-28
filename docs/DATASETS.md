@@ -69,7 +69,7 @@ They are sampled uniformly by area in EPSG:2039 using NumPy PCG64 seed
 ## Results
 
 Each engine returns location ID, road ID and class, closest point, and
-spheroidal distance in metres. Row-level results stay outside Git. Checksums,
+spherical distance in metres. Row-level results stay outside Git. Checksums,
 statistics, mismatches, and diagnostics remain in curated evidence.
 
 ## Manifests
