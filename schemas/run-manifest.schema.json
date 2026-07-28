@@ -1,0 +1,21 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://example.invalid/sedona-benchmark/run-manifest.schema.json",
+  "title": "Sedona benchmark run manifest",
+  "type": "object",
+  "additionalProperties": true,
+  "required": ["schema_version", "run_id", "created_at", "engine", "road_tier", "location_count", "warmups", "repetitions", "environment", "measurements", "correctness"],
+  "properties": {
+    "schema_version": {"const": 1},
+    "run_id": {"type": "string"},
+    "created_at": {"type": "string", "format": "date-time"},
+    "engine": {"enum": ["sedonadb", "kinetica"]},
+    "road_tier": {"type": "string"},
+    "location_count": {"type": "integer", "minimum": 1},
+    "warmups": {"type": "integer", "minimum": 0},
+    "repetitions": {"type": "integer", "minimum": 1},
+    "environment": {"type": "object"},
+    "measurements": {"type": "array"},
+    "correctness": {"type": "object", "required": ["passed"]}
+  }
+}

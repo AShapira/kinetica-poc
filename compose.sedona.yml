@@ -1,0 +1,48 @@
+services:
+  sedonadb:
+    build:
+      context: .
+      dockerfile: containers/Containerfile.sedonadb
+      args:
+        APP_UID: "${APP_UID:-1001}"
+        APP_GID: "${APP_GID:-1001}"
+    image: localhost/sedona-kinetica-benchmark:0.1.0
+    container_name: sedonadb-benchmark
+    userns_mode: keep-id
+    cpuset: "${SEDONA_CPUSET:-0-27}"
+    ports:
+      - "127.0.0.1:${SEDONADB_JUPYTER_PORT:-8889}:8888"
+    environment:
+      BENCHMARK_CONFIG: /workspace/config/benchmark.yaml
+      OVERTURE_RELEASE_DIR: /overture
+      BENCHMARK_DATA_DIR: /benchmark-data
+    volumes:
+      - ./:/workspace:Z
+      - "${OVERTURE_RELEASE_DIR:?set OVERTURE_RELEASE_DIR}:/overture:ro,z"
+      - "${BENCHMARK_DATA_DIR:?set BENCHMARK_DATA_DIR}:/benchmark-data:Z"
+    healthcheck:
+      test: ["CMD", "python", "-m", "sedona_benchmark", "doctor", "--quiet"]
+      interval: 15s
+      timeout: 10s
+      retries: 5
+      start_period: 30s
+    security_opt: ["no-new-privileges"]
+    cap_drop: ["ALL"]
+
+  sedonaspark:
+    image: docker.io/apache/sedona:1.9.0
+    container_name: sedonaspark-learning
+    userns_mode: keep-id
+    ports:
+      - "127.0.0.1:${SEDONASPARK_JUPYTER_PORT:-8890}:8888"
+      - "127.0.0.1:4040:4040"
+      - "127.0.0.1:8081:8080"
+      - "127.0.0.1:8082:8081"
+    environment:
+      DRIVER_MEM: "${SEDONASPARK_DRIVER_MEM:-6g}"
+      EXECUTOR_MEM: "${SEDONASPARK_EXECUTOR_MEM:-8g}"
+    volumes:
+      - ./notebooks:/workspace/notebooks:ro,Z
+      - "${OVERTURE_RELEASE_DIR:?set OVERTURE_RELEASE_DIR}:/overture:ro,z"
+      - "${BENCHMARK_DATA_DIR:?set BENCHMARK_DATA_DIR}:/benchmark-data:Z"
+    security_opt: ["no-new-privileges"]

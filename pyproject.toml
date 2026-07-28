@@ -1,0 +1,47 @@
+[build-system]
+requires = ["setuptools>=80,<81"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "sedona-kinetica-benchmark"
+version = "0.1.0"
+description = "Reproducible Israel nearest-road benchmark for SedonaDB and Kinetica"
+requires-python = ">=3.11,<3.13"
+dependencies = [
+  "apache-sedona[db]==1.9.0",
+  "geopandas==1.1.1",
+  "gpudb==7.2.3.9",
+  "jsonschema==4.25.0",
+  "jupyterlab==4.4.5",
+  "jupytext==1.17.2",
+  "matplotlib==3.10.5",
+  "nbconvert==7.16.6",
+  "numpy==2.3.2",
+  "pandas==2.3.1",
+  "psutil==7.0.0",
+  "psycopg[binary]==3.2.9",
+  "pyarrow==21.0.0",
+  "pyproj==3.7.2",
+  "PyYAML==6.0.2",
+  "shapely==2.1.1",
+]
+
+[project.optional-dependencies]
+dev = ["pytest==8.4.1", "ruff==0.12.7"]
+
+[project.scripts]
+sedona-benchmark = "sedona_benchmark.cli:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+addopts = "-ra"
+
+[tool.ruff]
+line-length = 100
+target-version = "py311"
+
+[tool.ruff.lint]
+select = ["E", "F", "I", "B", "UP"]

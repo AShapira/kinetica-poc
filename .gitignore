@@ -10,7 +10,21 @@
 # Credentials and local configuration overrides.
 .env
 .env.*
+!.env.example
 *.key
 *.pem
 *password*
 *secret*
+
+# Sedona benchmark runtime state and full generated data. Curated manifests,
+# samples, summaries, and plots under evidence/ remain tracked.
+/.env
+/.venv/
+/.pytest_cache/
+/.ruff_cache/
+/runtime/
+/data/
+/results/raw/
+/notebooks/.ipynb_checkpoints/
+__pycache__/
+*.py[cod]

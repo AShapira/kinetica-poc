@@ -1,0 +1,48 @@
+schema_version: 1
+source:
+  overture_release: "2026-07-22.0"
+  root: "${OVERTURE_RELEASE_DIR}"
+  division_area_glob: "theme=divisions/type=division_area/*.parquet"
+  segment_glob: "theme=transportation/type=segment/*.parquet"
+output:
+  root: "${BENCHMARK_DATA_DIR}"
+  evidence_root: "evidence"
+boundary:
+  country: "IL"
+  subtype: "country"
+  require_land: true
+  projected_crs: "EPSG:2039"
+roads:
+  headline_tier: "general_driving"
+  tiers:
+    arterial: [motorway, trunk, primary, secondary]
+    general_driving: [motorway, trunk, primary, secondary, tertiary, unclassified, residential, living_street]
+    service_rural: [motorway, trunk, primary, secondary, tertiary, unclassified, residential, living_street, service, track]
+  excluded: [footway, path, steps, pedestrian, cycleway, bridleway, raceway, unknown]
+  geoparquet_version: "1.1"
+  max_row_group_size: 100000
+locations:
+  count: 10000
+  generator: "numpy.PCG64"
+  seed: 20260727
+benchmark:
+  warmups: 1
+  repetitions: 5
+  correctness_tolerance_m: 1.0
+  exhaustive_oracle_locations: 100
+  kinetica_initial_radius_m: 1000
+  telemetry_interval_seconds: 0.5
+  cpu_sets:
+    physical_1: "0"
+    physical_2: "0,2"
+    physical_4: "0,2,4,6"
+    physical_8: "0,2,4,6,8,10,12,14"
+    physical_12: "0,2,4,6,8,10,12,14,16,18,20,22"
+    physical_14: "0,2,4,6,8,10,12,14,16,18,20,22,24,26"
+    logical_28: "0-27"
+kinetica:
+  host: "127.0.0.1"
+  postgres_port: 5434
+  database: "ki_home"
+  user: "${KINETICA_USER:-admin}"
+  password_file: "${KINETICA_PASSWORD_FILE:-/run/secrets/kinetica_password}"

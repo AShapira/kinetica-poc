@@ -1,0 +1,27 @@
+FROM docker.io/library/python:3.12.11-slim-bookworm
+
+ARG APP_UID=1001
+ARG APP_GID=1001
+
+RUN apt-get update \
+    && apt-get install --yes --no-install-recommends \
+       ca-certificates curl tini libgdal32 libproj25 procps \
+    && rm -rf /var/lib/apt/lists/* \
+    && groupadd --gid "${APP_GID}" sedona \
+    && useradd --uid "${APP_UID}" --gid "${APP_GID}" --create-home sedona
+
+WORKDIR /workspace
+COPY pyproject.toml README.md requirements.lock /workspace/
+RUN python -m pip install --no-cache-dir --upgrade "pip==25.1.1" \
+    && python -m pip install --no-cache-dir --requirement requirements.lock
+COPY src /workspace/src
+RUN python -m pip install --no-cache-dir --no-deps .
+
+USER sedona
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    JUPYTER_CONFIG_DIR=/workspace/runtime/jupyter \
+    MPLCONFIGDIR=/workspace/runtime/matplotlib
+
+ENTRYPOINT ["/usr/bin/tini", "--"]
+CMD ["python", "-m", "sedona_benchmark", "serve"]
