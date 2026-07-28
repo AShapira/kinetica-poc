@@ -121,6 +121,9 @@ For each engine/tier/resource case:
 The headline is median warm latency. Also report p95, min, max, median absolute
 deviation, throughput, speedup, and parallel efficiency. Five repetitions show
 run variability but do not justify claims of broad statistical significance.
+Rows with `MAD / median > 0.20` are retained and visibly flagged as high
+variability; they are not silently replaced or averaged with a different
+resource case.
 
 Competing benchmark engines do not run simultaneously. The Kinetica container
 is stopped during Sedona measurements and restored before its own phase;

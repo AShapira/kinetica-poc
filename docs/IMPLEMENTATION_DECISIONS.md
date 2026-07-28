@@ -192,3 +192,20 @@ approved Sedona GIS benchmark. Times use Asia/Jerusalem unless stated otherwise.
 - **Impact:** all Sedona scaling and full-resource tier cases are regenerated
   once under the enforced policy. Older manifests remain external diagnostic
   evidence; latest-case selection is deterministic and does not discard them.
+
+## 2026-07-28 — Preserve the 28-thread Sedona memory-pressure result
+
+- **Phase:** isolated rerun acceptance
+- **Observation:** physical-core cases from one through twelve were stable; 14
+  physical cores regressed. The 28-thread general-driving case rose from about
+  2.2 seconds to 16.8 seconds across its five repetitions, with a 9.60-second
+  median, 75% relative MAD, and 13.2 GiB peak client RSS. The service/rural
+  28-thread median was 16.70 seconds. No spill files remained and all
+  exhaustive correctness checks passed.
+- **Choice:** publish these latest isolated measurements and mark relative MAD
+  over 20% as high variability. Do not substitute the earlier faster
+  full-thread run or drop late repetitions.
+- **Interpretation:** on this build and host, adding SMT threads beyond the
+  physical-core optimum creates memory/execution pressure and is not a valid
+  “more CPUs must be faster” assumption. This is an observed configuration
+  result, not a universal Sedona conclusion.

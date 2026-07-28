@@ -32,6 +32,7 @@ benchmark:
   exhaustive_oracle_locations: 100
   kinetica_initial_radius_m: 1000
   kinetica_solution: 1
+  high_variability_relative_mad: 0.20
   telemetry_interval_seconds: 0.5
   cpu_sets:
     physical_1: "0"

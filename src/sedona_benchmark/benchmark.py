@@ -890,7 +890,9 @@ def _cross_engine_correctness(config: BenchmarkConfig) -> dict[str, Any]:
     }
 
 
-def _gpu_summary(value: dict[str, Any]) -> dict[str, float | None]:
+def _gpu_summary(
+    config: BenchmarkConfig, value: dict[str, Any]
+) -> dict[str, float | None]:
     directory = value["environment"].get("external_telemetry_dir")
     if not directory:
         return {
@@ -899,6 +901,13 @@ def _gpu_summary(value: dict[str, Any]) -> dict[str, float | None]:
             "gpu_memory_peak_mib": None,
         }
     path = Path(directory) / "nvidia-smi.csv"
+    if not path.exists():
+        path = (
+            config.output_root
+            / "telemetry"
+            / Path(directory).name
+            / "nvidia-smi.csv"
+        )
     if not path.exists():
         return {
             "gpu_utilization_peak_percent": None,
@@ -925,6 +934,7 @@ def compare_results(config: BenchmarkConfig) -> Path:
             if measurement["kind"] == "measured"
         ]
         median = statistics.median(measured)
+        mad = statistics.median(abs(item - median) for item in measured)
         telemetry = [measurement["telemetry"] for measurement in value["measurements"]]
         runs.append(
             {
@@ -937,8 +947,15 @@ def compare_results(config: BenchmarkConfig) -> Path:
                 "p95_seconds": pd.Series(measured).quantile(0.95),
                 "min_seconds": min(measured),
                 "max_seconds": max(measured),
-                "mad_seconds": statistics.median(
-                    abs(item - median) for item in measured
+                "mad_seconds": mad,
+                "relative_mad": mad / median,
+                "high_variability": (
+                    mad / median
+                    > float(
+                        config.values["benchmark"][
+                            "high_variability_relative_mad"
+                        ]
+                    )
                 ),
                 "throughput_locations_s": value["location_count"] / median,
                 "correctness_passed": value["correctness"]["passed"],
@@ -956,7 +973,7 @@ def compare_results(config: BenchmarkConfig) -> Path:
                     value.get("candidate_radius_distribution", {}),
                     sort_keys=True,
                 ),
-                **_gpu_summary(value),
+                **_gpu_summary(config, value),
             }
         )
     if not runs:
