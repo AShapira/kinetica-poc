@@ -15,7 +15,12 @@ reference output.
 | 05 | SedonaSpark GIS | Spark/Sedona spatial operations |
 | 06 | Kinetica equivalent | radius proof and result semantics |
 | 07 | analysis and reproduction | final tables and scaling plots |
+| 08 | standalone SedonaSpark clipping | regional roads GeoParquet |
 
 Notebooks read `BENCHMARK_DATA_DIR` and never embed private host paths.
 Conceptual cells remain useful without full data, but reference execution
 requires the canonical pipeline.
+
+Notebook 08 is independent of the ordered curriculum: it reads raw Overture
+division and transportation GeoParquet directly and writes its own Spark
+output under `BENCHMARK_DATA_DIR/spark`.
