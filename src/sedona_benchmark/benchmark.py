@@ -551,7 +551,11 @@ def _kinetica_radius_buckets(
         int(row[0])
         for row in _fetch_all_kinetica(
             connection.execute(
-                "SELECT location_id FROM sedona_benchmark_locations"
+                """
+                SELECT location_id
+                FROM sedona_benchmark_locations
+                ORDER BY location_id
+                """
             )
         )
     }
@@ -572,6 +576,7 @@ def _kinetica_radius_buckets(
                       ON r.{flag}
                      AND ST_DWITHIN(l.geometry, r.geometry, {radius}, 2)
                     WHERE l.location_id IN ({unresolved_sql})
+                    ORDER BY l.location_id
                     """
                 )
             )
@@ -649,6 +654,7 @@ def run_kinetica(config: BenchmarkConfig, tier: str, smoke: bool = False) -> Pat
             ) AS candidates
         ) AS ranked
         WHERE nearest_rank = 1
+        ORDER BY location_id
     """
     plan_path = (
         Path(config.values["output"]["evidence_root"])

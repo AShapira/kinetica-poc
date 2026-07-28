@@ -141,8 +141,11 @@ approved Sedona GIS benchmark. Times use Asia/Jerusalem unless stated otherwise.
   locations were loaded. The pinned client's `fetchall()` delegates to a single
   `fetchmany(cursor.arraysize)` call; its default array size is 5,000.
 - **Choice:** consume every cursor in explicit 5,000-row pages, both during
-  radius discovery and final result export. The loader now also compares
-  database counts with canonical input counts before reporting success.
+  radius discovery and final result export, with an explicit `ORDER BY
+  location_id` on each paged query. Without stable ordering, offset-based
+  result pages can overlap while omitting other rows. The loader now also
+  compares database counts with canonical input counts before reporting
+  success.
 - **Impact:** the incomplete smoke run is retained only as diagnostic evidence
   and is excluded from publication summaries. No measured publication run was
   accepted before this fix.
