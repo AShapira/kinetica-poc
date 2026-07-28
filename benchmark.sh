@@ -75,7 +75,7 @@ run_kinetica_with_telemetry() {
     while true; do
       date -u +%Y-%m-%dT%H:%M:%S.%3NZ
       podman stats --no-stream \
-        --format '{{.Name}},{{.CPU}},{{.MemUsage}},{{.Mem}},{{.NetIO}},{{.BlockIO}},{{.PIDS}}' \
+        --format '{{.Name}},{{.CPU}},{{.MemUsage}},{{.MemPerc}},{{.NetIO}},{{.BlockIO}},{{.PIDS}}' \
         kinetica
       sleep 0.5
     done

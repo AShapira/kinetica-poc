@@ -444,6 +444,20 @@ def _kinetica_connection(config: BenchmarkConfig):
     return connection
 
 
+def _fetch_all_kinetica(cursor, batch_size: int = 5_000) -> list[Any]:
+    """Consume every DB-API result page.
+
+    The pinned Kinetica cursor's ``fetchall()`` is implemented as one
+    ``fetchmany(cursor.arraysize)`` call and therefore returns at most its
+    default 5,000 rows. Explicit paging keeps this benchmark independent of
+    that client default.
+    """
+    rows: list[Any] = []
+    while batch := cursor.fetchmany(batch_size):
+        rows.extend(batch)
+    return rows
+
+
 def load_kinetica(config: BenchmarkConfig) -> dict[str, int]:
     """Load canonical rows through Kinetica's documented DB-API interface."""
     connection = _kinetica_connection(config)
@@ -504,8 +518,24 @@ def load_kinetica(config: BenchmarkConfig) -> dict[str, int]:
         "INSERT INTO sedona_benchmark_locations (location_id, geometry) VALUES ($1, $2)",
         location_rows,
     )
+    loaded_roads = int(
+        connection.execute(
+            "SELECT COUNT(*) FROM sedona_benchmark_roads"
+        ).fetchone()[0]
+    )
+    loaded_locations = int(
+        connection.execute(
+            "SELECT COUNT(*) FROM sedona_benchmark_locations"
+        ).fetchone()[0]
+    )
     connection.close()
-    return {"roads": len(roads), "locations": len(locations)}
+    expected = {"roads": len(roads), "locations": len(locations)}
+    actual = {"roads": loaded_roads, "locations": loaded_locations}
+    if actual != expected:
+        raise RuntimeError(
+            f"Kinetica load verification failed: expected {expected}, found {actual}"
+        )
+    return actual
 
 
 def _kinetica_radius_buckets(
@@ -519,9 +549,11 @@ def _kinetica_radius_buckets(
     }[tier]
     all_ids = {
         int(row[0])
-        for row in connection.execute(
-            "SELECT location_id FROM sedona_benchmark_locations"
-        ).fetchall()
+        for row in _fetch_all_kinetica(
+            connection.execute(
+                "SELECT location_id FROM sedona_benchmark_locations"
+            )
+        )
     }
     unresolved = set(all_ids)
     assignments: list[list[int]] = []
@@ -531,16 +563,18 @@ def _kinetica_radius_buckets(
         unresolved_sql = ", ".join(str(value) for value in sorted(unresolved))
         covered = {
             int(row[0])
-            for row in connection.execute(
-            f"""
-            SELECT DISTINCT l.location_id
-            FROM sedona_benchmark_locations AS l
-            JOIN sedona_benchmark_roads AS r
-              ON r.{flag}
-             AND ST_DWITHIN(l.geometry, r.geometry, {radius}, 2)
-            WHERE l.location_id IN ({unresolved_sql})
-            """
-            ).fetchall()
+            for row in _fetch_all_kinetica(
+                connection.execute(
+                    f"""
+                    SELECT DISTINCT l.location_id
+                    FROM sedona_benchmark_locations AS l
+                    JOIN sedona_benchmark_roads AS r
+                      ON r.{flag}
+                     AND ST_DWITHIN(l.geometry, r.geometry, {radius}, 2)
+                    WHERE l.location_id IN ({unresolved_sql})
+                    """
+                )
+            )
         }
         assignments.extend([[location_id, radius] for location_id in sorted(covered)])
         if covered:
@@ -637,7 +671,7 @@ def run_kinetica(config: BenchmarkConfig, tier: str, smoke: bool = False) -> Pat
             float(config.values["benchmark"]["telemetry_interval_seconds"])
         ) as telemetry:
             cursor = connection.execute(sql)
-            rows = cursor.fetchall()
+            rows = _fetch_all_kinetica(cursor)
         elapsed = time.perf_counter() - started
         result = pd.DataFrame(
             rows,

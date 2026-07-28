@@ -132,3 +132,27 @@ approved Sedona GIS benchmark. Times use Asia/Jerusalem unless stated otherwise.
   without relying on the broken parameter path.
 - **Impact:** the retry drops and recreates only the dedicated
   `sedona_benchmark_*` tables before loading.
+
+## 2026-07-28 — Page every Kinetica DB-API result explicitly
+
+- **Phase:** Kinetica correctness gate
+- **Issue:** the smoke query returned 5,000 of 10,000 locations even though
+  read-only database counts confirmed that all 383,603 roads and 10,000
+  locations were loaded. The pinned client's `fetchall()` delegates to a single
+  `fetchmany(cursor.arraysize)` call; its default array size is 5,000.
+- **Choice:** consume every cursor in explicit 5,000-row pages, both during
+  radius discovery and final result export. The loader now also compares
+  database counts with canonical input counts before reporting success.
+- **Impact:** the incomplete smoke run is retained only as diagnostic evidence
+  and is excluded from publication summaries. No measured publication run was
+  accepted before this fix.
+
+## 2026-07-28 — Use Podman's supported memory telemetry field
+
+- **Phase:** Kinetica host telemetry
+- **Issue:** the installed Podman release exposes `.MemPerc`, not `.Mem`, in
+  custom stats templates. The GPU sampler continued, and the smoke query
+  completed, but the container sampler wrote an error instead of measurements.
+- **Choice:** record `.MemUsage` and `.MemPerc` alongside CPU, I/O, and PID
+  fields. A direct no-stream probe against the running Kinetica container
+  validated the corrected template before publication runs.
