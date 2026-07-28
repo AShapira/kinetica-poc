@@ -429,13 +429,19 @@ def _kinetica_connection(config: BenchmarkConfig):
     password_path = Path(settings["password_file"])
     if password_path.stat().st_mode & 0o077:
         raise PermissionError(f"{password_path} must not be accessible by group or others")
-    return gpudb.connect(
+    connection = gpudb.connect(
         "kinetica://",
         url=f"http://{settings['host']}:9191",
         username=settings["user"],
         password=password_path.read_text(encoding="utf-8").strip(),
-        default_schema=settings["database"],
     )
+    current_schema = connection.execute("SELECT CURRENT_SCHEMA").fetchone()[0]
+    if current_schema != settings["database"]:
+        connection.close()
+        raise RuntimeError(
+            f"expected Kinetica schema {settings['database']}, found {current_schema}"
+        )
+    return connection
 
 
 def load_kinetica(config: BenchmarkConfig) -> dict[str, int]:

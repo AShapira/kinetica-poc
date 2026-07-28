@@ -118,3 +118,17 @@ approved Sedona GIS benchmark. Times use Asia/Jerusalem unless stated otherwise.
   `value` and allows the pinned `gpudb` module to import.
 - **Impact:** no database state changed during the failed load; the error
   occurred before connection creation.
+
+## 2026-07-28 — Verify Kinetica schema without the DB-API default option
+
+- **Phase:** Kinetica load
+- **Issue:** the pinned DB-API sends its `default_schema` connection value as an
+  `execute/sql` parameter during `executemany`; Kinetica 7.2.3 rejects that
+  parameter. Authentication and table creation had already succeeded.
+- **Choice:** omit the incompatible client option, query `CURRENT_SCHEMA` on
+  every connection, and abort unless it equals configured `ki_home`.
+- **Reason:** a read-only probe confirmed the authenticated admin session
+  already uses `ki_home`. Explicit verification preserves the schema contract
+  without relying on the broken parameter path.
+- **Impact:** the retry drops and recreates only the dedicated
+  `sedona_benchmark_*` tables before loading.
