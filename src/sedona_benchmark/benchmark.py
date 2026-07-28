@@ -124,9 +124,15 @@ def _normalise_result(result: gpd.GeoDataFrame | pd.DataFrame) -> pd.DataFrame:
     return normalised
 
 
-def _sedona_query(config: BenchmarkConfig, tier: str):
+def _sedona_query(config: BenchmarkConfig, tier: str, smoke: bool = False):
     root = config.output_root / "canonical"
-    locations = sorted(root.glob("israel_locations_*.parquet"))[-1]
+    locations = (
+        root / "israel_locations_100.parquet"
+        if smoke
+        else root / f"israel_locations_{config.values['locations']['count']}.parquet"
+    )
+    if not locations.exists():
+        raise FileNotFoundError(f"canonical locations are missing: {locations}")
     roads = root / "israel_roads.parquet"
     sd = sedona.db.connect()
     sd.options.memory_limit = "12gb"
@@ -154,43 +160,92 @@ def _sedona_query(config: BenchmarkConfig, tier: str):
         FROM locations
         """
     ).to_memtable().to_view("benchmark_locations")
-    target = sd.sql("SELECT COUNT(*) AS n FROM benchmark_locations").to_pandas().n[0]
+    all_ids = set(
+        int(value)
+        for value in sd.sql(
+            "SELECT location_id FROM benchmark_locations"
+        ).to_pandas().location_id
+    )
+    unresolved = set(all_ids)
+    assignments: list[dict[str, int]] = []
+    distribution: dict[int, int] = {}
     radius = int(config.values["benchmark"]["kinetica_initial_radius_m"])
-    while True:
-        covered = sd.sql(
+    while unresolved:
+        sd.create_data_frame(
+            pd.DataFrame({"location_id": sorted(unresolved)})
+        ).to_view("unresolved_ids", overwrite=True)
+        covered = {
+            int(value)
+            for value in sd.sql(
             f"""
-            SELECT COUNT(DISTINCT l.location_id) AS n
+            SELECT DISTINCT l.location_id
             FROM benchmark_locations AS l
+            INNER JOIN unresolved_ids AS u
+              ON l.location_id = u.location_id
             INNER JOIN roads AS r
               ON ST_DWithin(l.geography, r.geography, {radius})
             """
-        ).to_pandas().n[0]
-        if covered == target:
-            break
+            ).to_pandas().location_id
+        }
+        for location_id in sorted(covered):
+            assignments.append({"location_id": location_id, "radius_m": radius})
+        if covered:
+            distribution[radius] = len(covered)
+        unresolved -= covered
         radius *= 2
-        if radius > 1_024_000:
+        if unresolved and radius > 1_024_000:
             raise RuntimeError("SedonaDB radius discovery exceeded 1024 km")
-    sql = f"""
-        WITH ranked AS (
+    sd.create_data_frame(pd.DataFrame(assignments)).to_view("location_radii")
+    sd.sql(
+        """
+        SELECT l.location_id, l.geometry, l.geography, b.radius_m
+        FROM benchmark_locations AS l
+        INNER JOIN location_radii AS b
+          ON l.location_id = b.location_id
+        """
+    ).to_memtable().to_view("bucketed_locations")
+    candidate_branches = []
+    for bucket_radius in sorted(distribution):
+        candidate_branches.append(
+            f"""
             SELECT l.location_id, r.road_id, r.road_class,
-                   ST_ToGeometry(
-                       ST_ClosestPoint(r.geography, l.geography)
-                   ) AS nearest_point,
-                   ST_Distance(r.geography, l.geography) AS distance_m,
-                   ROW_NUMBER() OVER (
-                       PARTITION BY l.location_id
-                       ORDER BY ST_Distance(r.geography, l.geography), r.road_id
-                   ) AS nearest_rank
-            FROM benchmark_locations AS l
+                   l.geography AS location_geography,
+                   r.geography AS road_geography
+            FROM (
+                SELECT * FROM bucketed_locations
+                WHERE radius_m = {bucket_radius}
+            ) AS l
             INNER JOIN roads AS r
-              ON ST_DWithin(l.geography, r.geography, {radius})
+              ON ST_DWithin(l.geography, r.geography, {bucket_radius})
+            """
+        )
+    candidates = "\nUNION ALL\n".join(candidate_branches)
+    sql = f"""
+        WITH candidates AS (
+            {candidates}
+        ),
+        ranked AS (
+            SELECT location_id, road_id, road_class,
+                   ST_ToGeometry(
+                       ST_ClosestPoint(road_geography, location_geography)
+                   ) AS nearest_point,
+                   ST_Distance(
+                       road_geography, location_geography
+                   ) AS distance_m,
+                   ROW_NUMBER() OVER (
+                       PARTITION BY location_id
+                       ORDER BY ST_Distance(
+                           road_geography, location_geography
+                       ), road_id
+                   ) AS nearest_rank
+            FROM candidates
         )
         SELECT location_id, road_id, road_class,
                nearest_point, distance_m
         FROM ranked
         WHERE nearest_rank = 1
     """
-    return sd, sql, radius
+    return sd, sql, distribution
 
 
 def _sedona_exhaustive_oracle(
@@ -294,7 +349,7 @@ def _run_manifest(
 def run_sedona(config: BenchmarkConfig, tier: str, smoke: bool = False) -> Path:
     repetitions = 2 if smoke else int(config.values["benchmark"]["repetitions"])
     warmups = int(config.values["benchmark"]["warmups"])
-    sd, sql, radius = _sedona_query(config, tier)
+    sd, sql, radius_distribution = _sedona_query(config, tier, smoke)
     plan = sd.sql(sql).explain().to_pandas().to_string(index=False)
     plan_path = (
         Path(config.values["output"]["evidence_root"])
@@ -346,7 +401,13 @@ def run_sedona(config: BenchmarkConfig, tier: str, smoke: bool = False) -> Path:
         result=exported,
         measurements=measurements,
         result_path=full,
-        extra={"candidate_radius_m": radius, "exhaustive_oracle": oracle},
+        extra={
+            "candidate_radius_distribution": {
+                str(radius): count
+                for radius, count in sorted(radius_distribution.items())
+            },
+            "exhaustive_oracle": oracle,
+        },
     )
 
 
@@ -430,60 +491,111 @@ def load_kinetica(config: BenchmarkConfig) -> dict[str, int]:
     return {"roads": len(roads), "locations": len(locations)}
 
 
-def _kinetica_radius(config: BenchmarkConfig, tier: str) -> int:
+def _kinetica_radius_buckets(
+    config: BenchmarkConfig, tier: str
+) -> tuple[dict[int, int], str]:
     connection = _kinetica_connection(config)
     flag = {
         "arterial": "is_arterial",
         "general_driving": "is_general_driving",
         "service_rural": "is_service_rural",
     }[tier]
-    target = connection.execute(
-        "SELECT COUNT(*) FROM sedona_benchmark_locations"
-    ).fetchone()[0]
+    all_ids = {
+        int(row[0])
+        for row in connection.execute(
+            "SELECT location_id FROM sedona_benchmark_locations"
+        ).fetchall()
+    }
+    unresolved = set(all_ids)
+    assignments: list[list[int]] = []
+    distribution: dict[int, int] = {}
     radius = int(config.values["benchmark"]["kinetica_initial_radius_m"])
-    while True:
-        covered = connection.execute(
+    while unresolved:
+        unresolved_sql = ", ".join(str(value) for value in sorted(unresolved))
+        covered = {
+            int(row[0])
+            for row in connection.execute(
             f"""
-            SELECT COUNT(DISTINCT l.location_id)
+            SELECT DISTINCT l.location_id
             FROM sedona_benchmark_locations AS l
             JOIN sedona_benchmark_roads AS r
               ON r.{flag}
              AND ST_DWITHIN(l.geometry, r.geometry, {radius}, 2)
+            WHERE l.location_id IN ({unresolved_sql})
             """
-        ).fetchone()[0]
-        if covered == target:
-            break
+            ).fetchall()
+        }
+        assignments.extend([[location_id, radius] for location_id in sorted(covered)])
+        if covered:
+            distribution[radius] = len(covered)
+        unresolved -= covered
         radius *= 2
-        if radius > 1_024_000:
+        if unresolved and radius > 1_024_000:
             raise RuntimeError("Kinetica radius discovery exceeded 1024 km")
+    table = f"sedona_benchmark_location_radii_{tier}"
+    connection.execute(f"DROP TABLE IF EXISTS {table}")
+    connection.execute(
+        f"""
+        CREATE TABLE {table} (
+            location_id BIGINT NOT NULL,
+            radius_m INTEGER NOT NULL
+        ) USING TABLE PROPERTIES (NO_ERROR_IF_EXISTS=TRUE)
+        """
+    )
+    connection.executemany(
+        f"INSERT INTO {table} (location_id, radius_m) VALUES ($1, $2)",
+        assignments,
+    )
     connection.close()
-    return radius
+    return distribution, table
 
 
 def run_kinetica(config: BenchmarkConfig, tier: str, smoke: bool = False) -> Path:
     repetitions = 2 if smoke else int(config.values["benchmark"]["repetitions"])
     warmups = int(config.values["benchmark"]["warmups"])
-    radius = _kinetica_radius(config, tier)
+    radius_distribution, radius_table = _kinetica_radius_buckets(config, tier)
     flag = {
         "arterial": "is_arterial",
         "general_driving": "is_general_driving",
         "service_rural": "is_service_rural",
     }[tier]
-    sql = f"""
-        SELECT location_id, road_id, road_class, nearest_point, distance_m
-        FROM (
+    candidate_branches = []
+    for radius in sorted(radius_distribution):
+        candidate_branches.append(
+            f"""
             SELECT /* KI_HINT_NO_QUERY_RESULT_CACHING */
                    l.location_id, r.road_id, r.road_class,
-                   ST_CLOSESTPOINT(r.geometry, l.geometry, 2) AS nearest_point,
-                   ST_DISTANCE(r.geometry, l.geometry, 2) AS distance_m,
-                   ROW_NUMBER() OVER (
-                       PARTITION BY l.location_id
-                       ORDER BY ST_DISTANCE(r.geometry, l.geometry, 2), r.road_id
-                   ) AS nearest_rank
+                   r.geometry AS road_geometry,
+                   l.geometry AS location_geometry
             FROM sedona_benchmark_locations AS l
+            JOIN {radius_table} AS b
+              ON l.location_id = b.location_id
+             AND b.radius_m = {radius}
             JOIN sedona_benchmark_roads AS r
               ON r.{flag}
              AND ST_DWITHIN(l.geometry, r.geometry, {radius}, 2)
+            """
+        )
+    candidates = "\nUNION ALL\n".join(candidate_branches)
+    sql = f"""
+        SELECT location_id, road_id, road_class, nearest_point, distance_m
+        FROM (
+            SELECT location_id, road_id, road_class,
+                   ST_CLOSESTPOINT(
+                       road_geometry, location_geometry, 2
+                   ) AS nearest_point,
+                   ST_DISTANCE(
+                       road_geometry, location_geometry, 2
+                   ) AS distance_m,
+                   ROW_NUMBER() OVER (
+                       PARTITION BY location_id
+                       ORDER BY ST_DISTANCE(
+                           road_geometry, location_geometry, 2
+                       ), road_id
+                   ) AS nearest_rank
+            FROM (
+                {candidates}
+            ) AS candidates
         ) AS ranked
         WHERE nearest_rank = 1
     """
@@ -547,7 +659,12 @@ def run_kinetica(config: BenchmarkConfig, tier: str, smoke: bool = False) -> Pat
         result=exported,
         measurements=measurements,
         result_path=full,
-        extra={"candidate_radius_m": radius},
+        extra={
+            "candidate_radius_distribution": {
+                str(radius): count
+                for radius, count in sorted(radius_distribution.items())
+            }
+        },
     )
 
 

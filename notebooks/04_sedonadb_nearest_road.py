@@ -29,7 +29,8 @@
 import os
 from pathlib import Path
 
-import sedona.db
+from sedona_benchmark.benchmark import _sedona_query
+from sedona_benchmark.config import load_config
 
 root = Path(os.environ.get("BENCHMARK_DATA_DIR", "/benchmark-data")) / "canonical"
 roads_path = root / "israel_roads.parquet"
@@ -37,60 +38,20 @@ location_paths = sorted(root.glob("israel_locations_*.parquet"))
 if not roads_path.exists() or not location_paths:
     raise FileNotFoundError("Prepare canonical roads and locations first")
 
-sd = sedona.db.connect()
-sd.options.memory_limit = "12gb"
-sd.read_parquet(str(roads_path), partitioning=[]).to_view("all_roads")
-sd.read_parquet(str(location_paths[-1]), partitioning=[]).to_view("locations")
-sd.sql(
-    """
-    SELECT road_id, road_class, geometry,
-           ST_ToGeography(geometry) AS geography
-    FROM all_roads
-    WHERE is_general_driving
-    """
-).to_memtable().to_view("roads")
-sd.sql(
-    """
-    SELECT location_id, geometry, ST_ToGeography(geometry) AS geography
-    FROM locations
-    """
-).to_memtable().to_view("query_locations")
-
-# %%
-target = sd.sql("SELECT COUNT(*) AS n FROM query_locations").to_pandas().n[0]
-radius_m = 1000
-while True:
-    covered = sd.sql(
-        f"""
-        SELECT COUNT(DISTINCT l.location_id) AS n
-        FROM query_locations l
-        JOIN roads r ON ST_DWithin(l.geography, r.geography, {radius_m})
-        """
-    ).to_pandas().n[0]
-    if covered == target:
-        break
-    radius_m *= 2
-print({"locations": int(target), "proved_radius_m": radius_m})
-
-# %%
-query = f"""
-WITH ranked AS (
-  SELECT l.location_id, r.road_id, r.road_class,
-         ST_ToGeometry(
-           ST_ClosestPoint(r.geography, l.geography)
-         ) AS nearest_point,
-         ST_Distance(r.geography, l.geography) AS distance_m,
-         ROW_NUMBER() OVER (
-           PARTITION BY l.location_id
-           ORDER BY ST_Distance(r.geography, l.geography), r.road_id
-         ) AS nearest_rank
-  FROM query_locations l
-  JOIN roads r ON ST_DWithin(l.geography, r.geography, {radius_m})
+config = load_config(os.environ.get("BENCHMARK_CONFIG", "config/benchmark.yaml"))
+smoke = not (root / f"israel_locations_{config.values['locations']['count']}.parquet").exists()
+sd, query, radius_distribution = _sedona_query(
+    config, "general_driving", smoke=smoke
 )
-SELECT location_id, road_id, road_class, nearest_point, distance_m
-FROM ranked
-WHERE nearest_rank = 1
-"""
+print(
+    {
+        "mode": "100-location smoke" if smoke else "10,000-location full",
+        "radius_distribution": radius_distribution,
+        "covered": sum(radius_distribution.values()),
+    }
+)
+
+# %%
 print(sd.sql(query).explain().to_pandas().to_string(index=False)[:8000])
 
 # %%
@@ -100,11 +61,10 @@ sample = sd.sql(f"SELECT * FROM ({query}) WHERE location_id < 10").to_pandas(
 sample[["location_id", "road_id", "road_class", "distance_m"]]
 
 # %% [markdown]
-# Radius discovery is outside the timed query. Once each location has an
-# in-radius road, an outside road cannot be nearer. `ST_Distance` ranks the
-# candidates in spherical metres and `ST_ClosestPoint` identifies the answer
-# on the line. These are related operations but must all be present: a road ID
-# alone does not answer the “nearest point” requirement.
+# Radius discovery is outside the timed query. Each location is assigned to the
+# first doubling radius that covers it, so sparse points do not force dense
+# points into a 16 km candidate join. The plan shows one literal-radius spatial
+# join per populated bucket, a union, and one global distance ranking.
 #
 # The measured runner materializes every row and hashes the ordered result.
 # Timing `head()` would measure only enough work to return a display sample.

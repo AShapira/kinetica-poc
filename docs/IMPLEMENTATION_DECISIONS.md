@@ -68,3 +68,26 @@ approved Sedona GIS benchmark. Times use Asia/Jerusalem unless stated otherwise.
   prefix.
 - **Validation:** the smoke and measured run manifests include radius and oracle
   results; cross-engine distances are checked separately.
+
+## 2026-07-28 — Bucket candidate radii per location
+
+- **Phase:** full 10,000-location capacity gate
+- **Issue:** the first exact implementation used the largest discovered radius
+  (16 km) for every point. One execution reached the configured 100 GB spill
+  ceiling because a few remote points made dense urban locations generate
+  unnecessarily broad candidate sets.
+- **Options:** raise the spill ceiling, reduce the workload, abandon exact line
+  semantics, or retain exactness with location-specific radii.
+- **Choice:** assign each location to the first 1/2/4/8/16 km radius that has a
+  candidate, union literal-radius spatial joins, then perform one exact distance
+  ranking.
+- **Reason:** a road outside a location's first covered radius cannot beat its
+  in-radius minimum. This keeps the proof intact while bounding intermediate
+  volume.
+- **Impact:** the failed run produced no result manifest. Its 95 GB of
+  regenerable files under the dedicated benchmark spill directory were deleted,
+  restoring host free space from 152 GB to 250 GB. No canonical data or
+  Kinetica persistence was touched.
+- **Validation:** the 100-location smoke distribution was 44/22/12/17/5 across
+  1/2/4/8/16 km, used under 0.6 GB RSS, created no retained spill, and matched
+  the exhaustive oracle for all 100 points.

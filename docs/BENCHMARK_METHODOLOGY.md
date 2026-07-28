@@ -65,10 +65,14 @@ WITH ranked AS (
 SELECT * FROM ranked WHERE nearest_rank = 1;
 ```
 
-Starting at 1 km, an untimed coverage query doubles the radius until every
-location has a candidate. Any road outside that radius is farther than the
-in-radius nearest candidate. Geography operations return spherical metres and
-the road ID makes exact ties deterministic.
+Starting at 1 km, untimed coverage queries assign each still-uncovered location
+to the first doubling radius that contains a road. The timed query is a union
+of literal-radius spatial joins (1, 2, 4, 8, 16 km as needed), followed by one
+global ranking. Any road outside a location's assigned radius is farther than
+its in-radius nearest candidate. Per-location buckets prevent a few remote
+points from forcing every dense urban point into the maximum-radius join.
+Geography operations return spherical metres and the road ID makes exact ties
+deterministic.
 
 The timed operation fully materializes all output and calculates a deterministic
 checksum. Interactive display or partial retrieval is never timed.
@@ -77,15 +81,16 @@ checksum. Interactive display or partial retrieval is never timed.
 
 Kinetica uses the equivalent proved-radius algorithm:
 
-1. start at 1 km and double a tier-specific candidate radius;
-2. stop only when every location has at least one road candidate;
-3. join with spheroidal `ST_DWITHIN`;
+1. start at 1 km and assign covered locations to that radius;
+2. double only for still-uncovered locations;
+3. union literal-radius joins with spheroidal `ST_DWITHIN`;
 4. rank candidates by spheroidal `ST_DISTANCE`, then road ID;
 5. calculate `ST_CLOSESTPOINT` for rank one.
 
 Radius discovery is preparation. Once each location has an in-radius
-candidate, no feature outside that radius can be closer than the minimum
-candidate. The report includes the radius and coverage proof.
+candidate, no feature outside its assigned radius can be closer than the
+minimum candidate. The report includes the full radius distribution and
+coverage proof.
 
 Kinetica result caching is disabled. Plan and data warming remain representative
 of a warm analytical service.
