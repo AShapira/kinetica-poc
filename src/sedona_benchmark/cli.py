@@ -13,6 +13,11 @@ from sedona_benchmark.benchmark import (
     run_kinetica,
     run_sedona,
 )
+from sedona_benchmark.building_sources import (
+    DEFAULT_BATCH_SIZE,
+    DEFAULT_WORKERS,
+    analyze_building_sources,
+)
 from sedona_benchmark.config import load_config
 from sedona_benchmark.prepare import (
     prepare_all,
@@ -55,6 +60,32 @@ def _parser() -> argparse.ArgumentParser:
         default="general_driving",
     )
     kinetica.add_argument("--smoke", action="store_true")
+    building_sources = commands.add_parser(
+        "analyze-building-sources",
+        help="aggregate provenance from Overture building GeoParquet",
+    )
+    building_sources.add_argument(
+        "--workers",
+        type=int,
+        default=DEFAULT_WORKERS,
+        help=f"concurrent file workers (default: {DEFAULT_WORKERS})",
+    )
+    building_sources.add_argument(
+        "--batch-size",
+        type=int,
+        default=DEFAULT_BATCH_SIZE,
+        help=f"rows per Arrow batch (default: {DEFAULT_BATCH_SIZE})",
+    )
+    building_sources.add_argument(
+        "--rebuild",
+        action="store_true",
+        help="ignore matching checkpoints and rescan inputs",
+    )
+    building_sources.add_argument(
+        "--smoke",
+        action="store_true",
+        help="scan one row group into an isolated incomplete report",
+    )
     commands.add_parser("compare", help="create summaries and plots")
     return parser
 
@@ -121,5 +152,18 @@ def main() -> None:
         print(json.dumps(load_kinetica(config), indent=2))
     elif args.command == "run-kinetica":
         print(run_kinetica(config, args.tier, args.smoke))
+    elif args.command == "analyze-building-sources":
+        print(
+            json.dumps(
+                analyze_building_sources(
+                    config,
+                    workers=args.workers,
+                    batch_size=args.batch_size,
+                    rebuild=args.rebuild,
+                    smoke=args.smoke,
+                ),
+                indent=2,
+            )
+        )
     elif args.command == "compare":
         print(compare_results(config))

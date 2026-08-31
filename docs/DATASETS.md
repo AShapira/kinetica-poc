@@ -20,6 +20,24 @@ Transportation `segment` supplies `id`, `subtype`, `class`, `bbox`, and
 geometry. Candidate filtering uses road subtype, selected classes, and all four
 scalar bbox-overlap predicates. Exact intersection and clipping follow.
 
+## Building source inventory
+
+The building provenance inventory scans `type=building` only; `building_part`
+is outside its configured scope. It reads no geometry and defines a distinct
+source by `(dataset, property)`. The `property` value is an Overture JSON
+Pointer: the empty string applies to the whole feature and a non-empty value
+identifies a specific contributed field. License, source record ID, update
+time, confidence, and linear range remain observed metadata rather than source
+identity.
+
+`source-catalog.csv` counts each source key and its first-versus-later array
+positions. `source-combinations.csv` counts canonical, order-independent
+source lists while preserving duplicate occurrences. `source-cardinality.csv`
+records the distribution of list lengths. `summary.json` inventories inputs,
+checkpoints, hashes, reconciliation checks, and malformed-row warnings. All
+four artifacts and resumable checkpoints remain under the external benchmark
+data root.
+
 ## Intermediate data
 
 The boundary must contain exactly one non-empty valid feature. The clipped-road

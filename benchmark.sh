@@ -162,6 +162,9 @@ case "${1:-help}" in
     require_secret
     run_kinetica_with_telemetry run-kinetica "${@:2}"
     ;;
+  analyze-building-sources)
+    run_container "0-27" analyze-building-sources "${@:2}"
+    ;;
   compare)
     run_container "0-27" compare
     ;;
@@ -186,7 +189,7 @@ case "${1:-help}" in
     run_container "0-27" compare
     ;;
   *)
-    echo "Usage: $0 prepare|run-sedona|run-scaling|load-kinetica|run-kinetica|compare|smoke|reproduce" >&2
+    echo "Usage: $0 prepare|run-sedona|run-scaling|load-kinetica|run-kinetica|analyze-building-sources|compare|smoke|reproduce" >&2
     exit 2
     ;;
 esac

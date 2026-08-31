@@ -20,6 +20,17 @@ claim of equal hardware.
 5. Follow the [notebook curriculum](notebooks/README.md) or the
    [full reproduction guide](docs/REPRODUCIBILITY.md).
 
+To inventory provenance across every Overture `building` GeoParquet without
+reading geometry, run:
+
+```bash
+./benchmark.sh analyze-building-sources
+```
+
+This is a PyArrow scan in the benchmark container; it does not query SedonaDB,
+DuckDB, or Kinetica. It resumes from per-file checkpoints and writes CSV and
+JSON artifacts under the external benchmark data directory.
+
 ## Reproducibility contract
 
 - Overture release `2026-07-22.0`

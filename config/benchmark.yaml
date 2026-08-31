@@ -4,6 +4,7 @@ source:
   root: "${OVERTURE_RELEASE_DIR}"
   division_area_glob: "theme=divisions/type=division_area/*.parquet"
   segment_glob: "theme=transportation/type=segment/*.parquet"
+  building_glob: "theme=buildings/type=building/*.parquet"
 output:
   root: "${BENCHMARK_DATA_DIR}"
   evidence_root: "evidence"

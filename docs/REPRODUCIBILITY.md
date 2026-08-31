@@ -55,6 +55,38 @@ rootless service mounts only `notebooks/` and its ignored
 Smoke mode uses 100 locations and two warm measurements. It validates code and
 schemas but is not benchmark evidence.
 
+## Building provenance inventory
+
+Scan only the nested `sources` column from every configured
+`theme=buildings/type=building/*.parquet` input:
+
+```bash
+./benchmark.sh analyze-building-sources
+```
+
+The command runs Python and PyArrow inside the existing benchmark container.
+It does not require SedonaDB, DuckDB, or Kinetica. By default it uses four
+file workers, 65,536-row Arrow batches, and matching per-file checkpoints:
+
+```bash
+./benchmark.sh analyze-building-sources --workers 2 --batch-size 32768
+./benchmark.sh analyze-building-sources --smoke
+./benchmark.sh analyze-building-sources --rebuild
+```
+
+Smoke mode reads the first row group of the first file and writes an explicitly
+incomplete report under a separate `smoke/` directory. `--rebuild` ignores
+checkpoints but never changes the source GeoParquet. Production artifacts are
+written atomically under:
+
+```text
+BENCHMARK_DATA_DIR/analysis/building-sources/2026-07-22.0/
+```
+
+Accept a full result only when `summary.json` has `complete=true` and
+`validation.passed=true`. Null or empty source lists and missing source fields
+are counted as warnings rather than silently removed.
+
 ## Full preparation
 
 ```bash
