@@ -60,6 +60,41 @@ run_container() {
     "${image}" taskset --cpu-list "${cpuset}" python -m sedona_benchmark "$@"
 }
 
+build_presentation_bundle() {
+  : "${PRESENTATION_BUNDLE_DIR:?Set PRESENTATION_BUNDLE_DIR to a new output directory}"
+  local destination parent leaf
+  destination="$(realpath -m -- "${PRESENTATION_BUNDLE_DIR}")"
+  parent="$(dirname -- "${destination}")"
+  leaf="$(basename -- "${destination}")"
+  [[ "${destination}" != "/" && "${destination}" != "${project_dir}" ]] || {
+    echo "Refusing unsafe presentation bundle destination: ${destination}" >&2
+    exit 1
+  }
+  [[ ! -e "${destination}" ]] || {
+    echo "Presentation bundle destination must not exist: ${destination}" >&2
+    exit 1
+  }
+  [[ -d "${parent}" ]] || {
+    echo "Presentation bundle parent directory is missing: ${parent}" >&2
+    exit 1
+  }
+  podman run --rm \
+    --userns=keep-id \
+    --security-opt=no-new-privileges \
+    --cap-drop=all \
+    --volume "${project_dir}:/workspace:Z" \
+    --volume "${OVERTURE_RELEASE_DIR}:/overture:ro,z" \
+    --volume "${parent}:/presentation-parent:Z" \
+    --env BENCHMARK_CONFIG="${config}" \
+    --env BENCHMARK_GIT_COMMIT="${benchmark_git_commit}" \
+    --env BENCHMARK_GIT_DIRTY="${benchmark_git_dirty}" \
+    --env BENCHMARK_IMAGE_ID="${benchmark_image_id}" \
+    --env OVERTURE_RELEASE_DIR=/overture \
+    --env BENCHMARK_DATA_DIR=/presentation-parent \
+    "${image}" python -m sedona_benchmark build-presentation-bundle \
+      --output "/presentation-parent/${leaf}"
+}
+
 run_kinetica_with_telemetry() {
   local stamp telemetry_dir gpu_pid stats_pid result
   stamp="$(date -u +%Y%m%dT%H%M%SZ)"
@@ -143,6 +178,9 @@ run_scaling() {
 }
 
 case "${1:-help}" in
+  build-presentation-bundle)
+    build_presentation_bundle
+    ;;
   prepare)
     run_container "0-27" prepare "${2:-all}" "${@:3}"
     ;;
@@ -189,7 +227,7 @@ case "${1:-help}" in
     run_container "0-27" compare
     ;;
   *)
-    echo "Usage: $0 prepare|run-sedona|run-scaling|load-kinetica|run-kinetica|analyze-building-sources|compare|smoke|reproduce" >&2
+    echo "Usage: $0 build-presentation-bundle|prepare|run-sedona|run-scaling|load-kinetica|run-kinetica|analyze-building-sources|compare|smoke|reproduce" >&2
     exit 2
     ;;
 esac

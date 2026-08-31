@@ -1,4 +1,4 @@
-"""Canonical Israel road and deterministic location preparation."""
+"""Canonical road and deterministic location preparation."""
 
 from __future__ import annotations
 
@@ -13,15 +13,15 @@ from shapely.geometry import LineString, MultiLineString, Point
 
 from sedona_benchmark.config import BenchmarkConfig
 from sedona_benchmark.manifest import dataset_manifest, write_json
+from sedona_benchmark.paths import canonical_paths, dataset_manifest_names, scope_slug
 
 
 def _refresh_full_dataset_index(config: BenchmarkConfig) -> dict[str, str] | None:
-    canonical = config.output_root / "canonical"
+    canonical = canonical_paths(config)
     paths = {
-        "boundary": canonical / "israel_boundary.parquet",
-        "roads": canonical / "israel_roads.parquet",
-        "locations": canonical
-        / f"israel_locations_{int(config.values['locations']['count'])}.parquet",
+        "boundary": canonical.boundary,
+        "roads": canonical.roads,
+        "locations": canonical.locations,
     }
     if not all(path.exists() for path in paths.values()):
         return None
@@ -32,7 +32,9 @@ def _refresh_full_dataset_index(config: BenchmarkConfig) -> dict[str, str] | Non
 
 def _connect(config: BenchmarkConfig):
     sd = sedona.db.connect()
-    sd.options.memory_limit = "12gb"
+    sd.options.memory_limit = str(
+        config.values.get("runtime", {}).get("sedonadb_memory_limit", "12gb")
+    )
     sd.options.memory_pool_type = "fair"
     spill = config.output_root / "spill"
     spill.mkdir(parents=True, exist_ok=True)
@@ -51,43 +53,147 @@ def _write_geoparquet(frame: gpd.GeoDataFrame, path: Path) -> None:
     )
 
 
+def _english_common(names: Any) -> str | None:
+    if not isinstance(names, dict):
+        return None
+    common = names.get("common")
+    if isinstance(common, dict):
+        return common.get("en")
+    if isinstance(common, list):
+        return dict(common).get("en")
+    return None
+
+
 def prepare_boundary(config: BenchmarkConfig) -> Path:
     started = time.perf_counter()
-    out = config.output_root / "canonical" / "israel_boundary.parquet"
+    out = canonical_paths(config).boundary
     files = config.source_glob("division_area_glob")
     sd = _connect(config)
     sd.read_parquet([str(path) for path in files], partitioning=[]).to_view("division_areas")
-    country = config.values["boundary"]["country"].replace("'", "''")
-    subtype = config.values["boundary"]["subtype"].replace("'", "''")
-    query = f"""
-        SELECT id AS division_id, country, subtype, is_land, geometry
-        FROM division_areas
-        WHERE country = '{country}' AND subtype = '{subtype}' AND is_land = true
-    """
-    result = sd.sql(query).to_pandas(geometry="geometry")
-    if len(result) != 1:
-        raise RuntimeError(f"expected exactly one IL land country division, found {len(result)}")
-    result = result.set_crs("EPSG:4326", allow_override=True)
+    settings = config.values["boundary"]
+    country = settings["country"].replace("'", "''")
+    subtype = settings["subtype"].replace("'", "''")
+    mode = settings.get("mode", "country")
+    if mode == "country":
+        query = f"""
+            SELECT id AS division_id, country, subtype, is_land, geometry
+            FROM division_areas
+            WHERE country = '{country}'
+              AND subtype = '{subtype}'
+              AND is_land = true
+        """
+        result = sd.sql(query).to_pandas(geometry="geometry")
+        if len(result) != 1:
+            raise RuntimeError(
+                f"expected exactly one {country} land country division, "
+                f"found {len(result)}"
+            )
+        result = result.set_crs("EPSG:4326", allow_override=True)
+        boundary_statistics: dict[str, Any] = {
+            "division_id": str(result.iloc[0]["division_id"]),
+            "mode": mode,
+            "source_file_count": len(files),
+        }
+    elif mode == "locality_buffer":
+        locality_id = str(settings["locality_id"]).replace("'", "''")
+        locality = sd.sql(
+            f"""
+            SELECT id AS division_id, country, subtype, is_land, names, geometry
+            FROM division_areas
+            WHERE id = '{locality_id}'
+            """
+        ).to_pandas(geometry="geometry")
+        if len(locality) != 1:
+            raise RuntimeError(
+                f"expected exactly one locality {locality_id}, found {len(locality)}"
+            )
+        expected_name = settings.get("locality_name_en")
+        observed_name = _english_common(locality.iloc[0]["names"])
+        if expected_name and observed_name != expected_name:
+            raise RuntimeError(
+                f"expected locality English name {expected_name!r}, "
+                f"found {observed_name!r}"
+            )
+        if (
+            locality.iloc[0]["country"] != settings["country"]
+            or locality.iloc[0]["subtype"] != "locality"
+            or not bool(locality.iloc[0]["is_land"])
+        ):
+            raise RuntimeError("configured locality is not the expected IL land locality")
+        country_frame = sd.sql(
+            f"""
+            SELECT id AS division_id, country, subtype, is_land, geometry
+            FROM division_areas
+            WHERE country = '{country}'
+              AND subtype = '{subtype}'
+              AND is_land = true
+            """
+        ).to_pandas(geometry="geometry")
+        if len(country_frame) != 1:
+            raise RuntimeError(
+                f"expected exactly one {country} land country division, "
+                f"found {len(country_frame)}"
+            )
+        projected_crs = settings["projected_crs"]
+        locality_metric = locality.set_crs(
+            "EPSG:4326", allow_override=True
+        ).to_crs(projected_crs)
+        country_metric = country_frame.set_crs(
+            "EPSG:4326", allow_override=True
+        ).to_crs(projected_crs)
+        buffer_m = float(settings["buffer_m"])
+        selected = locality_metric.geometry.buffer(buffer_m).union_all()
+        if settings.get("clip_to_country_land", True):
+            selected = selected.intersection(country_metric.geometry.union_all())
+        if selected.is_empty or not selected.is_valid:
+            raise RuntimeError("buffered locality boundary is empty or invalid")
+        result = gpd.GeoDataFrame(
+            {
+                "division_id": [locality.iloc[0]["division_id"]],
+                "country": [settings["country"]],
+                "subtype": ["locality_buffer"],
+                "is_land": [True],
+            },
+            geometry=[selected],
+            crs=projected_crs,
+        ).to_crs("EPSG:4326")
+        boundary_statistics = {
+            "division_id": str(locality.iloc[0]["division_id"]),
+            "country_division_id": str(country_frame.iloc[0]["division_id"]),
+            "locality_name_en": observed_name,
+            "mode": mode,
+            "buffer_m": buffer_m,
+            "clip_to_country_land": bool(
+                settings.get("clip_to_country_land", True)
+            ),
+            "area_km2": float(
+                result.to_crs(projected_crs).geometry.area.sum() / 1_000_000
+            ),
+            "source_file_count": len(files),
+        }
+    else:
+        raise ValueError(f"unsupported boundary.mode: {mode}")
     _write_geoparquet(result, out)
+    boundary_name, _, _ = dataset_manifest_names(config)
+    slug = scope_slug(config)
     manifest = dataset_manifest(
         config=config,
-        dataset_id=f"overture-{config.values['source']['overture_release']}-il-boundary-v1",
+        dataset_id=(
+            f"overture-{config.values['source']['overture_release']}-{slug}-boundary-v1"
+        ),
         stage="canonical",
         files=[out],
         frame=result,
         command="benchmark.sh prepare boundary",
         duration_seconds=time.perf_counter() - started,
-        statistics={
-            "division_id": str(result.iloc[0]["division_id"]),
-            "source_file_count": len(files),
-        },
+        statistics=boundary_statistics,
         validation={
             "passed": bool(
                 result.geometry.is_valid.all() and not result.geometry.is_empty.any()
             )
         },
     )
-    write_json(config.output_root / "manifests" / "israel_boundary.json", manifest)
+    write_json(config.output_root / "manifests" / boundary_name, manifest)
     _refresh_full_dataset_index(config)
     return out
 
@@ -104,7 +210,8 @@ def _line_parts(geometry) -> list[LineString]:
 
 def prepare_roads(config: BenchmarkConfig, boundary_path: Path | None = None) -> Path:
     started = time.perf_counter()
-    boundary_path = boundary_path or config.output_root / "canonical" / "israel_boundary.parquet"
+    paths = canonical_paths(config)
+    boundary_path = boundary_path or paths.boundary
     if not boundary_path.exists():
         boundary_path = prepare_boundary(config)
     boundary = gpd.read_parquet(boundary_path)
@@ -116,12 +223,12 @@ def prepare_roads(config: BenchmarkConfig, boundary_path: Path | None = None) ->
     segment_files = config.source_glob("segment_glob")
     sd = _connect(config)
     sd.read_parquet([str(path) for path in segment_files], partitioning=[]).to_view("segments")
-    sd.read_parquet(str(boundary_path), partitioning=[]).to_view("israel_boundary")
+    sd.read_parquet(str(boundary_path), partitioning=[]).to_view("benchmark_boundary")
     query = f"""
         SELECT s.id AS source_segment_id, s.class AS road_class,
                ST_Intersection(s.geometry, b.geometry) AS geometry
         FROM segments AS s
-        CROSS JOIN israel_boundary AS b
+        CROSS JOIN benchmark_boundary AS b
         WHERE s.subtype = 'road'
           AND s.class IN ({class_sql})
           AND s.bbox.xmin <= {xmax}
@@ -167,22 +274,26 @@ def prepare_roads(config: BenchmarkConfig, boundary_path: Path | None = None) ->
     roads = roads.sort_values(["road_class", "road_id"]).reset_index(drop=True)
     metric = roads.to_crs(config.values["boundary"]["projected_crs"])
     roads["length_m"] = metric.length.astype(float)
-    out = config.output_root / "canonical" / "israel_roads.parquet"
+    out = paths.roads
     _write_geoparquet(roads, out)
     classes = {
         str(key): int(value)
         for key, value in roads["road_class"].value_counts().sort_index().items()
     }
     tier_counts = {name: int(roads[f"is_{name}"].sum()) for name in tier_sets}
+    _, roads_name, _ = dataset_manifest_names(config)
+    slug = scope_slug(config)
     manifest = dataset_manifest(
         config=config,
-        dataset_id=f"overture-{config.values['source']['overture_release']}-il-roads-v1",
+        dataset_id=(
+            f"overture-{config.values['source']['overture_release']}-{slug}-roads-v1"
+        ),
         stage="canonical",
         files=[out],
         frame=roads,
         command="benchmark.sh prepare roads",
         duration_seconds=time.perf_counter() - started,
-        parents=["israel-boundary"],
+        parents=[f"{slug}-boundary"],
         statistics={
             "source_file_count": len(segment_files),
             "bbox": [xmin, ymin, xmax, ymax],
@@ -190,8 +301,8 @@ def prepare_roads(config: BenchmarkConfig, boundary_path: Path | None = None) ->
             "tier_counts": tier_counts,
             "total_length_m": float(roads.length_m.sum()),
             "bbox_predicate": (
-                "xmin<=IL.xmax AND xmax>=IL.xmin AND "
-                "ymin<=IL.ymax AND ymax>=IL.ymin"
+                "xmin<=scope.xmax AND xmax>=scope.xmin AND "
+                "ymin<=scope.ymax AND ymax>=scope.ymin"
             ),
         },
         validation={
@@ -203,12 +314,12 @@ def prepare_roads(config: BenchmarkConfig, boundary_path: Path | None = None) ->
             "all_classes_expected": bool(set(roads.road_class).issubset(set(all_classes))),
         },
     )
-    write_json(config.output_root / "manifests" / "israel_roads.json", manifest)
+    write_json(config.output_root / "manifests" / roads_name, manifest)
     _write_geoparquet(
         roads.head(100),
         Path(config.values["output"]["evidence_root"])
         / "samples"
-        / "israel_roads_100.parquet",
+        / f"{slug}_roads_100.parquet",
     )
     _refresh_full_dataset_index(config)
     return out
@@ -220,7 +331,8 @@ def prepare_locations(
     count: int | None = None,
 ) -> Path:
     started = time.perf_counter()
-    boundary_path = boundary_path or config.output_root / "canonical" / "israel_boundary.parquet"
+    paths = canonical_paths(config, count)
+    boundary_path = boundary_path or canonical_paths(config).boundary
     boundary = gpd.read_parquet(boundary_path).to_crs(
         config.values["boundary"]["projected_crs"]
     )
@@ -243,21 +355,22 @@ def prepare_locations(
     frame["longitude"] = frame.geometry.x
     frame["latitude"] = frame.geometry.y
     frame = frame[["location_id", "seed", "longitude", "latitude", "geometry"]]
-    out = config.output_root / "canonical" / f"israel_locations_{target}.parquet"
+    out = paths.locations
     _write_geoparquet(frame, out)
     csv_path = out.with_suffix(".csv")
     frame.drop(columns="geometry").assign(wkt=frame.geometry.to_wkt()).to_csv(
         csv_path, index=False, float_format="%.12f"
     )
+    slug = scope_slug(config)
     manifest = dataset_manifest(
         config=config,
-        dataset_id=f"il-locations-n{target}-seed{seed}-v1",
+        dataset_id=f"{slug}-locations-n{target}-seed{seed}-v1",
         stage="canonical",
         files=[out, csv_path],
         frame=frame,
         command="benchmark.sh prepare locations",
         duration_seconds=time.perf_counter() - started,
-        parents=["israel-boundary"],
+        parents=[f"{slug}-boundary"],
         statistics={
             "seed": seed,
             "generator": "numpy.PCG64",
@@ -270,13 +383,14 @@ def prepare_locations(
         },
     )
     write_json(
-        config.output_root / "manifests" / f"israel_locations_{target}.json", manifest
+        config.output_root / "manifests" / f"{slug}_locations_{target}.json",
+        manifest,
     )
     _write_geoparquet(
         frame.head(100),
         Path(config.values["output"]["evidence_root"])
         / "samples"
-        / "israel_locations_100.parquet",
+        / f"{slug}_locations_100.parquet",
     )
     if target == int(config.values["locations"]["count"]):
         _refresh_full_dataset_index(config)

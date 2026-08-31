@@ -22,6 +22,7 @@ from shapely import from_wkt
 
 from sedona_benchmark.config import BenchmarkConfig
 from sedona_benchmark.manifest import git_commit, sha256_file, write_json
+from sedona_benchmark.paths import canonical_paths, dataset_manifest_names
 
 
 class _ProcessTelemetry:
@@ -101,6 +102,18 @@ def _environment(engine: str) -> dict[str, Any]:
         "external_telemetry_dir": os.environ.get(
             "BENCHMARK_EXTERNAL_TELEMETRY_DIR"
         ),
+        "benchmark_profile": os.environ.get("BENCHMARK_PROFILE", "production"),
+        "offline_mode": os.environ.get("BENCHMARK_OFFLINE") == "true",
+        "container_cpu_limit": os.environ.get("BENCHMARK_CONTAINER_CPUS"),
+        "container_memory_limit": os.environ.get("BENCHMARK_CONTAINER_MEMORY"),
+        "sedonadb_memory_limit": os.environ.get("SEDONADB_MEMORY_LIMIT"),
+        "bundle_sha256": os.environ.get("BENCHMARK_BUNDLE_SHA256"),
+        "kinetica_image": os.environ.get("BENCHMARK_KINETICA_IMAGE"),
+        "kinetica_image_digest": os.environ.get(
+            "BENCHMARK_KINETICA_IMAGE_DIGEST"
+        ),
+        "kinetica_gpu_mode": os.environ.get("BENCHMARK_KINETICA_GPU_MODE"),
+        "kinetica_gpu_name": os.environ.get("BENCHMARK_KINETICA_GPU_NAME"),
     }
     if engine == "sedonadb":
         import sedonadb
@@ -126,17 +139,19 @@ def _normalise_result(result: gpd.GeoDataFrame | pd.DataFrame) -> pd.DataFrame:
 
 
 def _sedona_query(config: BenchmarkConfig, tier: str, smoke: bool = False):
-    root = config.output_root / "canonical"
+    paths = canonical_paths(config)
     locations = (
-        root / "israel_locations_100.parquet"
+        canonical_paths(config, 100).locations
         if smoke
-        else root / f"israel_locations_{config.values['locations']['count']}.parquet"
+        else paths.locations
     )
     if not locations.exists():
         raise FileNotFoundError(f"canonical locations are missing: {locations}")
-    roads = root / "israel_roads.parquet"
+    roads = paths.roads
     sd = sedona.db.connect()
-    sd.options.memory_limit = "12gb"
+    sd.options.memory_limit = str(
+        config.values.get("runtime", {}).get("sedonadb_memory_limit", "12gb")
+    )
     sd.options.memory_pool_type = "fair"
     sd.options.temp_dir = str(config.output_root / "spill")
     sd.read_parquet(str(locations), partitioning=[]).to_view("locations")
@@ -432,7 +447,7 @@ def _kinetica_connection(config: BenchmarkConfig):
         raise PermissionError(f"{password_path} must not be accessible by group or others")
     connection = gpudb.connect(
         "kinetica://",
-        url=f"http://{settings['host']}:9191",
+        url=f"http://{settings['host']}:{int(settings.get('rest_port', 9191))}",
         username=settings["user"],
         password=password_path.read_text(encoding="utf-8").strip(),
     )
@@ -462,13 +477,9 @@ def _fetch_all_kinetica(cursor, batch_size: int = 5_000) -> list[Any]:
 def load_kinetica(config: BenchmarkConfig) -> dict[str, int]:
     """Load canonical rows through Kinetica's documented DB-API interface."""
     connection = _kinetica_connection(config)
-    roads = gpd.read_parquet(
-        config.output_root / "canonical" / "israel_roads.parquet"
-    )
-    locations_path = sorted(
-        (config.output_root / "canonical").glob("israel_locations_*.parquet")
-    )[-1]
-    locations = gpd.read_parquet(locations_path)
+    paths = canonical_paths(config)
+    roads = gpd.read_parquet(paths.roads)
+    locations = gpd.read_parquet(paths.locations)
     connection.execute("DROP TABLE IF EXISTS sedona_benchmark_roads")
     connection.execute("DROP TABLE IF EXISTS sedona_benchmark_locations")
     connection.execute(
@@ -779,20 +790,57 @@ def _projected_points(values) -> gpd.GeoSeries:
     return gpd.GeoSeries(values, crs="EPSG:4326").to_crs("EPSG:2039")
 
 
-def _cross_engine_correctness(config: BenchmarkConfig) -> dict[str, Any]:
+def _selected_engine_run(
+    runs: list[dict[str, Any]],
+    engine: str,
+    tier: str,
+    *,
+    require_full_resource: bool,
+) -> dict[str, Any] | None:
+    if require_full_resource:
+        return _full_resource_run(runs, engine, tier)
+    matches = [
+        run
+        for run in runs
+        if run["engine"] == engine and run["road_tier"] == tier
+    ]
+    return max(matches, key=lambda run: run["created_at"], default=None)
+
+
+def _cross_engine_correctness(
+    config: BenchmarkConfig,
+    *,
+    runs: list[dict[str, Any]] | None = None,
+    tiers_to_check: list[str] | None = None,
+    require_full_resource: bool = True,
+) -> dict[str, Any]:
     tolerance = float(config.values["benchmark"]["correctness_tolerance_m"])
     expected = int(config.values["locations"]["count"])
-    runs = _publication_runs(config)
-    roads = gpd.read_parquet(
-        config.output_root / "canonical" / "israel_roads.parquet"
-    ).set_index("road_id").geometry
+    runs = runs if runs is not None else _publication_runs(config)
+    tiers_to_check = tiers_to_check or list(config.values["roads"]["tiers"])
+    roads = gpd.read_parquet(canonical_paths(config).roads).set_index("road_id").geometry
     tiers: dict[str, Any] = {}
     mismatch_samples: list[dict[str, Any]] = []
-    for tier in config.values["roads"]["tiers"]:
-        sedona_run = _full_resource_run(runs, "sedonadb", tier)
-        kinetica_run = _full_resource_run(runs, "kinetica", tier)
+    for tier in tiers_to_check:
+        sedona_run = _selected_engine_run(
+            runs,
+            "sedonadb",
+            tier,
+            require_full_resource=require_full_resource,
+        )
+        kinetica_run = _selected_engine_run(
+            runs,
+            "kinetica",
+            tier,
+            require_full_resource=require_full_resource,
+        )
         if sedona_run is None or kinetica_run is None:
-            tiers[tier] = {"passed": False, "reason": "missing full-resource run"}
+            reason = (
+                "missing full-resource run"
+                if require_full_resource
+                else "missing presentation run"
+            )
+            tiers[tier] = {"passed": False, "reason": reason}
             continue
         left = gpd.read_parquet(sedona_run["result_path"])[
             ["location_id", "road_id", "nearest_point", "distance_m"]
@@ -876,14 +924,14 @@ def _cross_engine_correctness(config: BenchmarkConfig) -> dict[str, Any]:
         }
     checked = sum(value.get("checked_rows", 0) for value in tiers.values())
     passed = (
-        set(tiers) == set(config.values["roads"]["tiers"])
-        and checked == expected * len(config.values["roads"]["tiers"])
+        set(tiers) == set(tiers_to_check)
+        and checked == expected * len(tiers_to_check)
         and all(value.get("passed") for value in tiers.values())
     )
     return {
         "passed": passed,
         "checked_rows": checked,
-        "expected_rows": expected * len(config.values["roads"]["tiers"]),
+        "expected_rows": expected * len(tiers_to_check),
         "tolerance_m": tolerance,
         "tiers": tiers,
         "mismatch_samples": mismatch_samples,
@@ -1037,13 +1085,13 @@ def compare_results(config: BenchmarkConfig) -> Path:
     figure.savefig(plots / "engine-comparison.png", dpi=160)
     plt.close(figure)
     dataset_manifests = {}
-    for name in ("israel_boundary.json", "israel_roads.json"):
+    boundary_name, roads_name, location_name = dataset_manifest_names(config)
+    for name in (boundary_name, roads_name):
         path = config.output_root / "manifests" / name
         dataset_manifests[name] = {
             "sha256": sha256_file(path),
             "value": json.loads(path.read_text(encoding="utf-8")),
         }
-    location_name = f"israel_locations_{config.values['locations']['count']}.json"
     location_path = config.output_root / "manifests" / location_name
     dataset_manifests[location_name] = {
         "sha256": sha256_file(location_path),
@@ -1065,7 +1113,7 @@ def compare_results(config: BenchmarkConfig) -> Path:
             "source_release": config.values["source"]["overture_release"],
             "config_sha256": config.sha256,
             "selection_policy": (
-                "latest clean, correct, 10000-location, five-repetition run "
+                "latest clean, correct, configured-location, configured-repetition run "
                 "per engine, tier, and exact CPU affinity"
             ),
             "dataset_manifests": dataset_manifests,
@@ -1086,6 +1134,171 @@ def compare_results(config: BenchmarkConfig) -> Path:
                     ),
                 }
                 for value in _publication_runs(config)
+            ],
+            "artifacts": [
+                {
+                    "path": str(path.relative_to(evidence)),
+                    "bytes": path.stat().st_size,
+                    "sha256": sha256_file(path),
+                }
+                for path in artifact_paths
+            ],
+            "correctness_passed": correctness["passed"],
+        },
+    )
+    return out
+
+
+def _presentation_runs(config: BenchmarkConfig) -> list[dict[str, Any]]:
+    expected_locations = int(config.values["locations"]["count"])
+    expected_repetitions = int(config.values["benchmark"]["repetitions"])
+    expected_tier = config.values["roads"]["headline_tier"]
+    latest: dict[str, dict[str, Any]] = {}
+    for path in sorted((config.output_root / "runs").glob("*.json")):
+        value = json.loads(path.read_text(encoding="utf-8"))
+        environment = value.get("environment", {})
+        if (
+            environment.get("benchmark_profile")
+            != "windows-docker-presentation"
+            or value.get("location_count") != expected_locations
+            or value.get("repetitions") != expected_repetitions
+            or value.get("road_tier") != expected_tier
+            or not value.get("correctness", {}).get("passed")
+        ):
+            continue
+        engine = value["engine"]
+        if engine not in latest or value["created_at"] > latest[engine]["created_at"]:
+            value["_manifest_path"] = str(path)
+            latest[engine] = value
+    runs = [latest[name] for name in ("sedonadb", "kinetica") if name in latest]
+    bundle_hashes = {
+        run["environment"].get("bundle_sha256") for run in runs
+    }
+    if len(runs) == 2 and (None in bundle_hashes or len(bundle_hashes) != 1):
+        raise RuntimeError("presentation engine runs do not use one bundle hash")
+    return runs
+
+
+def compare_presentation(config: BenchmarkConfig) -> Path:
+    """Create explicitly non-publication output for the Windows presentation."""
+    runs = _presentation_runs(config)
+    if {run["engine"] for run in runs} != {"sedonadb", "kinetica"}:
+        raise RuntimeError("one valid SedonaDB and Kinetica presentation run is required")
+    rows: list[dict[str, Any]] = []
+    for value in runs:
+        measured = [
+            measurement["elapsed_seconds"]
+            for measurement in value["measurements"]
+            if measurement["kind"] == "measured"
+        ]
+        median = statistics.median(measured)
+        mad = statistics.median(abs(item - median) for item in measured)
+        telemetry = [measurement["telemetry"] for measurement in value["measurements"]]
+        cpu_limit = value["environment"].get("container_cpu_limit")
+        rows.append(
+            {
+                "run_id": value["run_id"],
+                "engine": value["engine"],
+                "road_tier": value["road_tier"],
+                "location_count": value["location_count"],
+                "container_cpu_limit": float(cpu_limit) if cpu_limit else None,
+                "container_memory_limit": value["environment"].get(
+                    "container_memory_limit"
+                ),
+                "median_seconds": median,
+                "p95_seconds": pd.Series(measured).quantile(0.95),
+                "min_seconds": min(measured),
+                "max_seconds": max(measured),
+                "mad_seconds": mad,
+                "relative_mad": mad / median,
+                "throughput_locations_s": value["location_count"] / median,
+                "correctness_passed": value["correctness"]["passed"],
+                "client_peak_rss_bytes": max(
+                    item["maximum_rss_bytes"] for item in telemetry
+                ),
+                "git_commit": value["environment"].get("git_commit"),
+                "benchmark_image_digest": value["environment"].get(
+                    "image_digest"
+                ),
+                "kinetica_image_digest": value["environment"].get(
+                    "kinetica_image_digest"
+                ),
+                "bundle_sha256": value["environment"].get("bundle_sha256"),
+            }
+        )
+    evidence = Path(config.values["output"]["evidence_root"])
+    evidence.mkdir(parents=True, exist_ok=True)
+    summary = pd.DataFrame(rows).sort_values("engine")
+    out = evidence / "presentation-summary.csv"
+    summary.to_csv(out, index=False, float_format="%.6f")
+    tier = config.values["roads"]["headline_tier"]
+    correctness = _cross_engine_correctness(
+        config,
+        runs=runs,
+        tiers_to_check=[tier],
+        require_full_resource=False,
+    )
+    write_json(evidence / "correctness-summary.json", correctness)
+    if not correctness["passed"]:
+        raise RuntimeError("presentation cross-engine correctness failed")
+    plots = evidence / "plots"
+    plots.mkdir(parents=True, exist_ok=True)
+    figure, axis = plt.subplots(figsize=(7, 4.5))
+    summary.plot.bar(
+        x="engine",
+        y="median_seconds",
+        legend=False,
+        color=["#4c78a8", "#f58518"],
+        ax=axis,
+    )
+    axis.set(
+        xlabel="Engine",
+        ylabel="Median measured latency (seconds)",
+        title="Ashdod presentation: nearest general-driving road",
+    )
+    axis.grid(True, axis="y", alpha=0.3)
+    figure.tight_layout()
+    svg = plots / "engine-comparison.svg"
+    png = plots / "engine-comparison.png"
+    figure.savefig(svg)
+    figure.savefig(png, dpi=160)
+    plt.close(figure)
+    boundary_name, roads_name, location_name = dataset_manifest_names(config)
+    dataset_manifests: dict[str, Any] = {}
+    for name in (boundary_name, roads_name, location_name):
+        path = config.output_root / "manifests" / name
+        dataset_manifests[name] = {
+            "sha256": sha256_file(path),
+            "value": json.loads(path.read_text(encoding="utf-8")),
+        }
+    artifact_paths = [out, evidence / "correctness-summary.json", svg, png]
+    write_json(
+        evidence / "presentation-manifest.json",
+        {
+            "schema_version": 1,
+            "purpose": "presentation",
+            "comparable_to_publication": False,
+            "created_at": datetime.now(UTC).isoformat(),
+            "profile": "windows-docker-presentation",
+            "scope": "ashdod-10km-land-clipped",
+            "source_release": config.values["source"]["overture_release"],
+            "config_sha256": config.sha256,
+            "bundle_sha256": runs[0]["environment"]["bundle_sha256"],
+            "limitations": [
+                "Not a production or publication benchmark.",
+                "Uses 1,000 presentation points and one road tier.",
+                "Docker Desktop and RTX 5080 are not certified Kinetica topology.",
+                "Container CPU quotas are not physical-core affinity cases.",
+            ],
+            "dataset_manifests": dataset_manifests,
+            "selected_runs": [
+                {
+                    "run_id": run["run_id"],
+                    "manifest_path": run["_manifest_path"],
+                    "engine": run["engine"],
+                    "environment": run["environment"],
+                }
+                for run in runs
             ],
             "artifacts": [
                 {

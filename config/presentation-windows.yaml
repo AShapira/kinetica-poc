@@ -1,23 +1,20 @@
 schema_version: 1
+scope:
+  slug: "ashdod-10km"
+  purpose: "windows-docker-presentation"
 source:
   overture_release: "2026-07-22.0"
-  root: "${OVERTURE_RELEASE_DIR}"
+  root: "${PRESENTATION_BUNDLE_DIR:-/presentation-input}"
   division_area_glob: "theme=divisions/type=division_area/*.parquet"
   segment_glob: "theme=transportation/type=segment/*.parquet"
-  building_glob: "theme=buildings/type=building/*.parquet"
 output:
-  root: "${BENCHMARK_DATA_DIR}"
-  evidence_root: "evidence"
-runtime:
-  sedonadb_memory_limit: "12gb"
+  root: "${BENCHMARK_DATA_DIR:-/presentation-output}"
+  evidence_root: "${BENCHMARK_DATA_DIR:-/presentation-output}/evidence"
 boundary:
+  mode: "locality_buffer"
   country: "IL"
   subtype: "country"
   require_land: true
-  projected_crs: "EPSG:2039"
-presentation_bundle:
-  country: "IL"
-  subtype: "country"
   locality_id: "248ef38a-2ef7-4f18-9cf4-71a8f9b1d9ab"
   locality_name_en: "Ashdod"
   buffer_m: 10000
@@ -33,29 +30,24 @@ roads:
   geoparquet_version: "1.1"
   max_row_group_size: 100000
 locations:
-  count: 10000
+  count: 1000
   generator: "numpy.PCG64"
   seed: 20260727
+runtime:
+  sedonadb_memory_limit: "${SEDONADB_MEMORY_LIMIT:-12gb}"
 benchmark:
   warmups: 1
-  repetitions: 5
+  repetitions: 3
   correctness_tolerance_m: 1.0
   exhaustive_oracle_locations: 100
   kinetica_initial_radius_m: 1000
   kinetica_solution: 1
   high_variability_relative_mad: 0.20
   telemetry_interval_seconds: 0.5
-  cpu_sets:
-    physical_1: "0"
-    physical_2: "0,2"
-    physical_4: "0,2,4,6"
-    physical_8: "0,2,4,6,8,10,12,14"
-    physical_12: "0,2,4,6,8,10,12,14,16,18,20,22"
-    physical_14: "0,2,4,6,8,10,12,14,16,18,20,22,24,26"
-    logical_28: "0-27"
 kinetica:
-  host: "127.0.0.1"
-  postgres_port: 5434
+  host: "${KINETICA_HOST:-host.docker.internal}"
+  rest_port: "${KINETICA_REST_PORT:-19191}"
+  postgres_port: "${KINETICA_POSTGRES_PORT:-15434}"
   database: "ki_home"
   user: "${KINETICA_USER:-admin}"
   password_file: "${KINETICA_PASSWORD_FILE:-/run/secrets/kinetica_password}"

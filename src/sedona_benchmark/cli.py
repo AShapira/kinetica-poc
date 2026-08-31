@@ -8,6 +8,7 @@ import os
 import sys
 
 from sedona_benchmark.benchmark import (
+    compare_presentation,
     compare_results,
     load_kinetica,
     run_kinetica,
@@ -25,6 +26,7 @@ from sedona_benchmark.prepare import (
     prepare_locations,
     prepare_roads,
 )
+from sedona_benchmark.presentation_bundle import build_presentation_bundle
 
 
 def _parser() -> argparse.ArgumentParser:
@@ -86,7 +88,16 @@ def _parser() -> argparse.ArgumentParser:
         action="store_true",
         help="scan one row group into an isolated incomplete report",
     )
+    bundle = commands.add_parser(
+        "build-presentation-bundle",
+        help="build the compact Ashdod Windows presentation input",
+    )
+    bundle.add_argument("--output", required=True)
     commands.add_parser("compare", help="create summaries and plots")
+    commands.add_parser(
+        "compare-presentation",
+        help="create isolated Windows presentation summaries and plots",
+    )
     return parser
 
 
@@ -165,5 +176,9 @@ def main() -> None:
                 indent=2,
             )
         )
+    elif args.command == "build-presentation-bundle":
+        print(build_presentation_bundle(config, args.output))
     elif args.command == "compare":
         print(compare_results(config))
+    elif args.command == "compare-presentation":
+        print(compare_presentation(config))

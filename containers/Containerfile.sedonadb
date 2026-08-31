@@ -16,6 +16,7 @@ RUN python -m pip install --no-cache-dir --upgrade "pip==25.1.1" \
     && python -m pip install --no-cache-dir --requirement requirements.lock
 COPY src /workspace/src
 RUN python -m pip install --no-cache-dir --no-deps .
+COPY config /workspace/config
 
 USER sedona
 ENV PYTHONUNBUFFERED=1 \

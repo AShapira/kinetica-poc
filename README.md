@@ -20,6 +20,10 @@ claim of equal hardware.
 5. Follow the [notebook curriculum](notebooks/README.md) or the
    [full reproduction guide](docs/REPRODUCIBILITY.md).
 
+For the small, presentation-only Windows workstation option, use the separate
+[Windows Docker Desktop guide](README.windows-docker.md). It is deliberately
+isolated from the production and publication benchmark paths.
+
 To inventory provenance across every Overture `building` GeoParquet without
 reading geometry, run:
 
@@ -91,6 +95,10 @@ before use.
 The local POC required a small, undistributed compatibility adjustment to the
 vendor installer because Podman repeats values in `inspect` output. This
 repository records the behavior and outcome without redistributing vendor code.
+
+The repository's own code and documentation are available under the
+[MIT License](LICENSE). Kinetica and Overture-derived data retain their own
+license and attribution terms.
 
 ## Lifecycle commands
 

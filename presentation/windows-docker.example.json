@@ -1,0 +1,32 @@
+{
+  "schemaVersion": 1,
+  "docker": {
+    "executable": "docker",
+    "benchmarkImage": "kinetica-poc-benchmark:windows-presentation",
+    "gpuSmokeImage": "nvidia/cuda:13.0.1-base-ubuntu24.04",
+    "offline": true,
+    "cpus": 8,
+    "memory": "16g",
+    "sedonaMemory": "12gb"
+  },
+  "paths": {
+    "bundle": "..\\presentation-data\\ashdod-bundle",
+    "output": "..\\presentation-output",
+    "kineticaPersistence": "..\\presentation-data\\kinetica-persist",
+    "kineticaInstaller": "..\\kinetica.bat"
+  },
+  "kinetica": {
+    "container": "kinetica-presentation",
+    "image": "docker.io/kinetica/kinetica-cuda:7.2.3.18.20260707203019.ga",
+    "imageDigest": "sha256:b137bb31fe53d325eb30c67eadc12720355df09ad6f512fe99ac5835bf37ffac",
+    "installerSha256": "8ba755caa75c96f1c8bf9b5b3d2137c8d5bb7742de46fb4b1410b20f348a842b",
+    "user": "admin",
+    "ports": {
+      "database": 19191,
+      "postgres": 15434,
+      "workbench": 18000,
+      "gadmin": 18080,
+      "reveal": 18088
+    }
+  }
+}
